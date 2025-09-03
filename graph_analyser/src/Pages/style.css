@@ -786,3 +786,40 @@ video {
         grid-template-columns: repeat(4, minmax(0, 1fr));
     }
 }
+
+/* === Cytoscape Edgehandles Styles === */
+
+/* the draggable handle dot */
+.edgehandles-hover {
+  background-color: red;
+  border: 1px solid white;
+  border-radius: 50%;
+  width: 12px;
+  height: 12px;
+  position: absolute;
+  z-index: 9999;
+  pointer-events: none;
+  box-shadow: 0 0 2px rgba(0,0,0,0.5);
+}
+
+/* when the handle is active (dragging) */
+.edgehandles-active {
+  background-color: #e74c3c;
+  border: 2px solid #fff;
+}
+
+/* the line that follows your mouse while dragging */
+.edgehandles-preview {
+  background-color: #e74c3c;
+  opacity: 0.6;
+  z-index: 9999;
+  pointer-events: none;
+}
+
+/* the ghost edge that appears when hovering */
+.edgehandles-ghost-edge {
+  stroke: #e74c3c;
+  stroke-width: 2;
+  opacity: 0.5;
+  pointer-events: none;
+}
