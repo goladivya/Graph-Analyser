@@ -16,7 +16,7 @@ const Component = () => {
     { data: { id: "BC", source: "B", target: "C", weight: 3 } },
     { data: { id: "BD", source: "B", target: "D", weight: 7 } },
     { data: { id: "AD", source: "A", target: "D", weight: 2 } },
-  ]);
+  ]);z
 
   const cyRef = useRef(null);
 
