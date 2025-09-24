@@ -156,7 +156,7 @@ const Component = () => {
                   Clear Graph
                 </button>
                    
-                <button className="bg-yellow-400 hover:bg-yellow-500 text-white px-6 py-2 rounded-lg shadow-md">
+                <button className="bg-amber-600 hover:bg-amber-700 text-white px-6 py-2 rounded-lg shadow-md">
                   Save Graph
                 </button>
                 <button className="bg-amber-600 hover:bg-amber-700 text-white px-6 py-2 rounded-lg shadow-md">
