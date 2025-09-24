@@ -50,8 +50,8 @@ const Component = () => {
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
             <div className="lg:col-span-1 space-y-6">
               <GraphTools />
-              <AlgorithmPanel />
-              <AnalysisResults />
+              <AlgorithmPanel cyRef={cyRef} />
+
             </div>
 
             <div className="lg:col-span-3">
@@ -60,10 +60,13 @@ const Component = () => {
                 setElements={setElements}
                 cyRef={cyRef}
               />
+              <div className="mt-6">
+                <AnalysisResults />
+              </div>
             </div>
           </div>
 
-         
+
         </div>
       </div>
     </div>
