@@ -112,6 +112,53 @@ const Component = () => {
   }, [elements]);
 
 
+  //Save 
+  const saveGraph = () => {
+  // Convert the elements array to JSON
+  const dataStr = JSON.stringify(elements, null, 2); // pretty print
+  const blob = new Blob([dataStr], { type: "application/json" });
+
+  // Create a temporary link to download
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "graph.json";
+  a.click();
+
+  // Cleanup
+  URL.revokeObjectURL(url);
+};
+
+//Gml
+const convertToGML = (elements) => {
+  let gml = "graph [\n  directed 0\n";
+
+  elements.forEach((el) => {
+    if (el.data.source && el.data.target) {
+      // Edge
+      gml += `  edge [\n    source "${el.data.source}"\n    target "${el.data.target}"\n    weight ${el.data.weight || 1}\n  ]\n`;
+    } else {
+      // Node
+      gml += `  node [\n    id "${el.data.id}"\n    label "${el.data.label}"\n    x ${el.position.x}\n    y ${el.position.y}\n  ]\n`;
+    }
+  });
+
+  gml += "]";
+  return gml;
+};
+
+const saveGraphGML = () => {
+  const gmlData = convertToGML(elements);
+  const blob = new Blob([gmlData], { type: "text/plain" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "graph.gml";
+  a.click();
+
+  URL.revokeObjectURL(url);
+};
 
   return (
     <div id="webcrumbs">
@@ -156,12 +203,20 @@ const Component = () => {
                   Clear Graph
                 </button>
                    
-                <button className="bg-amber-600 hover:bg-amber-700 text-white px-6 py-2 rounded-lg shadow-md">
-                  Save Graph
-                </button>
-                <button className="bg-amber-600 hover:bg-amber-700 text-white px-6 py-2 rounded-lg shadow-md">
-                  Load GML
-                </button>
+               <button
+  className="bg-amber-600 hover:bg-amber-700 text-white px-6 py-2 rounded-lg shadow-md"
+  onClick={saveGraph}
+>
+  Save Graph
+</button>
+
+                <button
+  className="bg-amber-600 hover:bg-amber-700 text-white px-6 py-2 rounded-lg shadow-md"
+  onClick={saveGraphGML}
+>
+  Save GML
+</button>
+
               </div>
             </div>
           </header>
