@@ -169,9 +169,9 @@ const Component = () => {
           {/* Layout */}
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
             <div className="lg:col-span-1 space-y-6">
-              <GraphTools setElements={updateElements} />
-              <AlgorithmPanel />
-              <AnalysisResults />
+              <GraphTools />
+              <AlgorithmPanel cyRef={cyRef} />
+
             </div>
 
             <div className="lg:col-span-3">
@@ -180,8 +180,13 @@ const Component = () => {
                 setElements={updateElements}
                 cyRef={cyRef}
               />
+              <div className="mt-6">
+                <AnalysisResults />
+              </div>
             </div>
           </div>
+
+
         </div>
       </div>
     </div>
