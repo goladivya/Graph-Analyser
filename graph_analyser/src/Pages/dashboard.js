@@ -225,9 +225,14 @@ const Component = () => {
           {/* Layout */}
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
             <div className="lg:col-span-1 space-y-6">
-              <GraphTools setElements={updateElements} />
-              <AlgorithmPanel cyRef={cyRef} setResults={setResults} />
-
+              <div
+                // style top to match header height (adjust 112px -> your header height)
+                style={{ position: "sticky", top: "112px", maxHeight: "calc(100vh - 112px)", overflowY: "auto", paddingRight: "8px" }}
+                className="space-y-6"
+              >
+                <GraphTools setElements={updateElements} />
+                <AlgorithmPanel cyRef={cyRef} setResults={setResults} />
+              </div>
             </div>
 
             <div className="lg:col-span-3">

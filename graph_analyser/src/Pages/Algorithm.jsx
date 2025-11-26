@@ -5,6 +5,10 @@ const AlgorithmPanel = ({ cyRef, setResults }) => {
   const [activeTab, setActiveTab] = useState("algorithms");
   const [properties, setProperties] = useState(null);
   const [balanceResult, setBalanceResult] = useState(null);
+  const [selectedAlgo, setSelectedAlgo] = useState("");
+  
+
+  
 
 
   useEffect(() => {
@@ -1172,193 +1176,106 @@ return {
         >
           Properties
         </button>
-        <button
-          onClick={() => setActiveTab("import")}
-          className={`flex-1 py-3 px-4 font-medium ${activeTab === "import"
-            ? "text-gray-700 border-b-2 border-yellow-400"
-            : "text-gray-500"
-            }`}
-        >
-          Import/Export
-        </button>
+        
       </div>
 
       <div className="p-4 space-y-2">
         {activeTab === "algorithms" && (
           <>
-            <div className="w-full bg-white rounded-xl shadow-lg p-5 space-y-4">
-              <div className="text-lg font-semibold text-gray-800">Structural Balance</div>
-              <div className="text-sm text-gray-600 mb-3">
-                Check whether signed graph is balanced (heuristic BFS). Positive edges = friendly, negative edges = enemy.
-              </div>
-              <div id="webcrumbs" className="flex flex-col sm:flex-row gap-3">
-                <button
-                  onClick={handleRunBalance}
-                  className="bg-yellow-400 hover:bg-yellow-500 text-white px-3 py-2 rounded-lg shadow-md"
-                >
-                  Check Balance
-                </button>
+  {/* Algorithm Dropdown */}
+  <div className="bg-white rounded-xl shadow p-5 mb-4">
+    <label className="text-sm text-gray-600">Select Algorithm</label>
 
-                { <button
-                  onClick={handleMakeBalanced}
-                  className="bg-yellow-400 hover:bg-yellow-500 text-white px-3 py-1 rounded-lg shadow-md"
-                >
-                  Make Balanced
-                </button>}
-
-                <button
-                  onClick={() => {
-                    resetVisuals();
-                    setBalanceResult(null);
-                  }}
-                  className="bg-gray-300 hover:bg-gray-400 text-gray-800 px-3 py-1 rounded-lg shadow-md"
-                >
-                  Clear
-                </button>
-              </div>
-
-            </div>
-
-            {/* Dijkstra's Shortest Path Card */}
-            <div className="w-full bg-white rounded-xl shadow-lg p-5 space-y-4 mt-6">
-              <div className="text-lg font-semibold text-gray-800">Dijkstra's Shortest Path</div>
-              <div className="text-sm text-gray-600 mb-3">
-                Find the shortest path between two nodes in the graph. Edges can have weights.
-              </div>
-              <div className="flex flex-col sm:flex-row gap-3">
-                <button
-                  onClick={() => {
-                    const source = prompt("Enter source node ID");
-                    const target = prompt("Enter target node ID");
-                    if (!source || !target) return;
-                    const res = runDijkstra(source, target);
-                    if (res) setResults(res);
-                  }}
-                  className="bg-amber-600 hover:bg-amber-700 text-white px-3 py-2 rounded-lg shadow-md"
-                >
-                  Run Dijkstra
-                </button>
-
-                <button
-                  onClick={() => resetVisuals()}
-                  className="bg-gray-300 hover:bg-gray-400 text-gray-800 px-6 py-6 rounded-lg shadow-md"
-                >
-                  Clear
-                </button>
-              </div>
-              <div className="text-sm text-gray-500 mt-2">
-                <p>Note: The shortest path will be highlighted in yellow. Source node: blue, Target node: orange.</p>
-              </div>
-            </div>
-
-            {/* Centrality Algorithms */}
-<div className="w-full bg-yellow rounded-xl shadow-lg p-5 space-y-4 mt-6">
-  <div className="text-lg font-semibold text-gray-800">Centrality Measures</div>
-
-  <div className="flex flex-col sm:flex-row gap-3">
-    <button
-      onClick={() => {
-        const res = runDegreeCentrality();
-        if (res) setResults(res);
-      }}
-      className="bg-amber-600 hover:bg-amber-700 text-white px-3 py-2 rounded-lg shadow-md"
+    <select
+      className="mt-2 w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-700 focus:ring-2 focus:ring-yellow-400"
+      value={selectedAlgo}
+      onChange={(e) => setSelectedAlgo(e.target.value)}
     >
-      Degree Centrality
-    </button>
+      <option value="">-- Choose an Algorithm --</option>
 
-    <button
-      onClick={() => {
-        const res = runClosenessCentrality();
-        if (res) setResults(res);
-      }}
-      className="bg-amber-600 hover:bg-amber-700 text-white px-3 py-2 rounded-lg shadow-md"
-    >
-      Closeness Centrality
-    </button>
+      <optgroup label="Structural Balance">
+        <option value="balance-check">Check Balance</option>
+        <option value="balance-greedy">Make Balanced (Greedy)</option>
+      </optgroup>
 
-    <button
-      onClick={() => {
-        const res = runBetweennessCentrality();
-        if (res) setResults(res);
-      }}
-      className="bg-amber-600 hover:bg-amber-700 text-white px-3 py-2 rounded-lg shadow-md"
-    >
-      Betweenness Centrality
-    </button>
+      <optgroup label="Shortest Path">
+        <option value="dijkstra">Dijkstra</option>
+      </optgroup>
 
-    <button
-      onClick={() => resetVisuals()}
-      className="bg-gray-300 hover:bg-gray-400 text-gray-800 px-3 py-2 rounded-lg shadow-md"
-    >
-      Clear
-    </button>
-  </div>
-</div>
+      <optgroup label="Centrality Measures">
+        <option value="degree">Degree Centrality</option>
+        <option value="closeness">Closeness Centrality</option>
+        <option value="betweenness">Betweenness Centrality</option>
+      </optgroup>
 
-                 {/* PageRank Algorithm Card */}
-<div className="w-full bg-white rounded-xl shadow-lg p-5 space-y-4 mt-6">
-  <div className="text-lg font-semibold text-gray-800">PageRank</div>
-  <div className="text-sm text-gray-600 mb-3">
-    Compute node importance based on the link structure using the PageRank algorithm.
+      <optgroup label="Ranking">
+        <option value="pagerank">PageRank</option>
+        <option value="hits">HITS</option>
+      </optgroup>
+
+    </select>
   </div>
 
-  <div className="flex flex-col sm:flex-row gap-3">
-    <button
-      onClick={() => {
-        const damping = parseFloat(prompt("Enter damping factor (default 0.85):") || 0.85);
-        const res = runPageRank(damping);
-        if (res) setResults(res);
-      }}
-      className="bg-amber-600 hover:bg-amber-700 text-white px-3 py-2 rounded-lg shadow-md"
-    >
-      Run PageRank
-    </button>
+  {/* Dynamic Algorithm Card */}
+  {selectedAlgo && (
+    <div className="bg-white rounded-xl shadow-lg p-6 space-y-4">
+      <h2 className="text-xl font-semibold text-gray-800 text-center">
+         {selectedAlgo.replace("-", " ").toUpperCase()}
+      </h2>
 
-    <button
-      onClick={() => resetVisuals()}
-      className="bg-gray-300 hover:bg-gray-400 text-gray-800 px-3 py-2 rounded-lg shadow-md"
-    >
-      Clear
-    </button>
-  </div>
+      {/* Description */}
+      <p className="text-sm text-gray-600">
+        {selectedAlgo === "balance-check" && "Check whether the signed graph is structurally balanced."}
+        {selectedAlgo === "balance-greedy" && "Automatically flip edges to reduce conflicts and balance the graph."}
+        {selectedAlgo === "dijkstra" && "Find the shortest path between two nodes (supports weighted edges)."}
+        {selectedAlgo === "degree" && "Compute degree centrality for each node."}
+        {selectedAlgo === "closeness" && "Measure closeness centrality of all nodes based on shortest paths."}
+        {selectedAlgo === "betweenness" && "Compute betweenness centrality using Brandes’ algorithm."}
+        {selectedAlgo === "pagerank" && "Compute PageRank values using iterative damping algorithm."}
+        {selectedAlgo === "hits" && "Calculate Hub & Authority scores (HITS algorithm)."}
+      </p>
 
-  <div className="text-sm text-gray-500 mt-2">
-    <p>Note: Node size and color intensity represent PageRank value.</p>
-  </div>
-</div>
+      {/* BUTTON GROUP */}
+      <div className="flex gap-4 mt-4 justify-center">
+        
+        {/* Run Algorithm Button */}
+        <button
+          onClick={() => {
+            if (selectedAlgo === "balance-check") handleRunBalance();
+            if (selectedAlgo === "balance-greedy") handleMakeBalanced();
+            if (selectedAlgo === "dijkstra") {
+              const s = prompt("Enter source node ID");
+              const t = prompt("Enter target node ID");
+              if (s && t) {
+                const res = runDijkstra(s, t);
+                if (res) setResults(res);
+              }
+            }
+            if (selectedAlgo === "degree") setResults(runDegreeCentrality());
+            if (selectedAlgo === "closeness") setResults(runClosenessCentrality());
+            if (selectedAlgo === "betweenness") setResults(runBetweennessCentrality());
+            if (selectedAlgo === "pagerank") {
+              const d = prompt("Enter damping factor (default 0.85):") || 0.85;
+              setResults(runPageRank(parseFloat(d)));
+            }
+            if (selectedAlgo === "hits") setResults(runHITS());
+          }}
+           className="bg-yellow-400 hover:bg-yellow-500 text-white px-6 py-2 rounded-lg shadow-md"
+        >
+          Run
+        </button>
 
-
-
-            {/* HITS Algorithm */}
-            <div className="w-full bg-white rounded-xl shadow-lg p-5 space-y-4 mt-6">
-              <div className="text-lg font-semibold text-gray-800">HITS Algorithm</div>
-              <div className="text-sm text-gray-600 mb-3">
-                Computes Hub & Authority scores (for directed graphs).
-              </div>
-
-              <div className="flex flex-col sm:flex-row gap-3">
-                <button
-                  onClick={() => runHITS()}
-                  className="bg-yellow-400 hover:bg-yellow-500 text-white px-3 py-2 rounded-lg shadow-md"
-                >
-                  Run HITS
-                </button>
-
-                <button
-                  onClick={() => resetVisuals()}
-                  className="bg-gray-300 hover:bg-gray-400 text-gray-800 px-3 py-2 rounded-lg shadow-md"
-                >
-                  Clear
-                </button>
-              </div>
-
-              <div className="text-sm text-gray-500 mt-2">
-                <p>Authority scores shown using node color intensity (yellow).</p>
-              </div>
-            </div>
-
-
-          </>
+        {/* Clear Button */}
+        <button
+          onClick={() => resetVisuals()}
+           className="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-lg shadow-md"
+        >
+          Clear
+        </button>
+      </div>
+    </div>
+  )}
+</>
 
         )}
 
@@ -1414,9 +1331,7 @@ return {
           )
         )}
 
-        {activeTab === "import" && (
-          <p className="text-gray-600">Import/Export functionality coming soon...</p>
-        )}
+        
       </div>
     </div>
   );
