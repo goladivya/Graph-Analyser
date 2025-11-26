@@ -1326,7 +1326,7 @@ return {
     <p>Note: Node size and color intensity represent PageRank value.</p>
   </div>
 </div>
-    </div>
+
 
 
             {/* HITS Algorithm */}
