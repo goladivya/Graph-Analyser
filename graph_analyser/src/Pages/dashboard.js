@@ -22,6 +22,7 @@ const Component = () => {
   const [history, setHistory] = useState([]);
   const [redoStack, setRedoStack] = useState([]);
   const [nodeCounter, setNodeCounter] = useState(1);
+  const [results, setResults] = useState(null);
   const cyRef = useRef(null);
 
   const deepCopy = (obj) =>
@@ -48,15 +49,15 @@ const Component = () => {
     });
   };
 
-  const addNode = () => {
-    const newId = `N${nodeCounter}`;
-    const newNode = {
-      data: { id: newId, label: newId },
-      position: { x: 200 + nodeCounter * 30, y: 200 },
-    };
-    updateElements((prev) => [...prev, newNode]);
-    setNodeCounter((c) => c + 1);
-  };
+  /* const addNode = () => {
+     const newId = `N${nodeCounter}`;
+     const newNode = {
+       data: { id: newId, label: newId },
+       position: { x: 200 + nodeCounter * 30, y: 200 },
+     };
+     updateElements((prev) => [...prev, newNode]);
+     setNodeCounter((c) => c + 1);
+   };*/
 
   const clearGraph = () => {
     updateElements([]);
@@ -88,7 +89,7 @@ const Component = () => {
   };
 
 
-  
+
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -114,51 +115,51 @@ const Component = () => {
 
   //Save 
   const saveGraph = () => {
-  // Convert the elements array to JSON
-  const dataStr = JSON.stringify(elements, null, 2); // pretty print
-  const blob = new Blob([dataStr], { type: "application/json" });
+    // Convert the elements array to JSON
+    const dataStr = JSON.stringify(elements, null, 2); // pretty print
+    const blob = new Blob([dataStr], { type: "application/json" });
 
-  // Create a temporary link to download
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "graph.json";
-  a.click();
+    // Create a temporary link to download
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "graph.json";
+    a.click();
 
-  // Cleanup
-  URL.revokeObjectURL(url);
-};
+    // Cleanup
+    URL.revokeObjectURL(url);
+  };
 
-//Gml
-const convertToGML = (elements) => {
-  let gml = "graph [\n  directed 0\n";
+  //Gml
+  const convertToGML = (elements) => {
+    let gml = "graph [\n  directed 0\n";
 
-  elements.forEach((el) => {
-    if (el.data.source && el.data.target) {
-      // Edge
-      gml += `  edge [\n    source "${el.data.source}"\n    target "${el.data.target}"\n    weight ${el.data.weight || 1}\n  ]\n`;
-    } else {
-      // Node
-      gml += `  node [\n    id "${el.data.id}"\n    label "${el.data.label}"\n    x ${el.position.x}\n    y ${el.position.y}\n  ]\n`;
-    }
-  });
+    elements.forEach((el) => {
+      if (el.data.source && el.data.target) {
+        // Edge
+        gml += `  edge [\n    source "${el.data.source}"\n    target "${el.data.target}"\n    weight ${el.data.weight || 1}\n  ]\n`;
+      } else {
+        // Node
+        gml += `  node [\n    id "${el.data.id}"\n    label "${el.data.label}"\n    x ${el.position.x}\n    y ${el.position.y}\n  ]\n`;
+      }
+    });
 
-  gml += "]";
-  return gml;
-};
+    gml += "]";
+    return gml;
+  };
 
-const saveGraphGML = () => {
-  const gmlData = convertToGML(elements);
-  const blob = new Blob([gmlData], { type: "text/plain" });
-  const url = URL.createObjectURL(blob);
+  const saveGraphGML = () => {
+    const gmlData = convertToGML(elements);
+    const blob = new Blob([gmlData], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
 
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "graph.gml";
-  a.click();
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "graph.gml";
+    a.click();
 
-  URL.revokeObjectURL(url);
-};
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div id="webcrumbs">
@@ -202,20 +203,20 @@ const saveGraphGML = () => {
                 >
                   Clear Graph
                 </button>
-                   
-               <button
-  className="bg-amber-600 hover:bg-amber-700 text-white px-6 py-2 rounded-lg shadow-md"
-  onClick={saveGraph}
->
-  Save Graph
-</button>
 
                 <button
-  className="bg-amber-600 hover:bg-amber-700 text-white px-6 py-2 rounded-lg shadow-md"
-  onClick={saveGraphGML}
->
-  Save GML
-</button>
+                  className="bg-amber-600 hover:bg-amber-700 text-white px-6 py-2 rounded-lg shadow-md"
+                  onClick={saveGraph}
+                >
+                  Save Graph
+                </button>
+
+                <button
+                  className="bg-amber-600 hover:bg-amber-700 text-white px-6 py-2 rounded-lg shadow-md"
+                  onClick={saveGraphGML}
+                >
+                  Save GML
+                </button>
 
               </div>
             </div>
@@ -224,8 +225,8 @@ const saveGraphGML = () => {
           {/* Layout */}
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
             <div className="lg:col-span-1 space-y-6">
-              <GraphTools  setElements={updateElements}/>
-              <AlgorithmPanel cyRef={cyRef} />
+              <GraphTools setElements={updateElements} />
+              <AlgorithmPanel cyRef={cyRef} setResults={setResults} />
 
             </div>
 
@@ -236,7 +237,7 @@ const saveGraphGML = () => {
                 cyRef={cyRef}
               />
               <div className="mt-6">
-                <AnalysisResults />
+                <AnalysisResults results={results} />
               </div>
             </div>
           </div>
