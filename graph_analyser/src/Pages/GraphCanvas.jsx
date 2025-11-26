@@ -5,7 +5,7 @@ import "./style.css";
 
 const GraphCanvas = ({ elements, setElements, cyRef }) => {
     const [isDirected, setIsDirected] = useState(true);
-     const [showDropdown, setShowDropdown] = useState(false);
+    const [showDropdown, setShowDropdown] = useState(false);
 
     const handleZoomIn = () => {
         if (cyRef.current) {
@@ -27,7 +27,7 @@ const GraphCanvas = ({ elements, setElements, cyRef }) => {
         }
     };
 
-  
+
 
     const handleGenerateGraph = (type) => {
         setShowDropdown(false);
@@ -36,13 +36,13 @@ const GraphCanvas = ({ elements, setElements, cyRef }) => {
             // Clear graph
             setElements([]);
             if (cyRef.current) cyRef.current.elements().remove();
-        } 
+        }
         else if (type === "random") {
             const numNodes = parseInt(prompt("Enter number of nodes:", 5));
             if (isNaN(numNodes) || numNodes <= 0) return;
 
-             const directed = window.confirm("Should the graph be directed? (OK = Directed, Cancel = Undirected)");
-             setIsDirected(directed);
+            const directed = window.confirm("Should the graph be directed? (OK = Directed, Cancel = Undirected)");
+            setIsDirected(directed);
 
             let newElements = [];
 
@@ -66,7 +66,8 @@ const GraphCanvas = ({ elements, setElements, cyRef }) => {
                             id: `e${i}-${target}`,
                             source: `n${i}`,
                             target: `n${target}`,
-                            weight: Math.floor(Math.random() * 10) + 1,
+                            weight: 1,
+                            directed: directed,
                         },
                         classes: directed ? "directed" : "undirected",
                     });
@@ -82,7 +83,7 @@ const GraphCanvas = ({ elements, setElements, cyRef }) => {
         }
     };
 
-    
+
 
     return (
         <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-yellow-400 h-[600px]">
@@ -90,31 +91,31 @@ const GraphCanvas = ({ elements, setElements, cyRef }) => {
                 <h2 className="text-xl font-bold text-gray-800">Graph Canvas</h2>
                 <div className="flex items-center space-x-2">
                     <div className="relative">
-                    <button
-                        className="px-4 py-2 bg-yellow-400 hover:bg-yellow-500 text-gray-800 font-semibold rounded-lg shadow-sm"
-                        onClick={() => setShowDropdown(!showDropdown)}
-                    >
-                        New Graph
-                    </button>
+                        <button
+                            className="px-4 py-2 bg-yellow-400 hover:bg-yellow-500 text-gray-800 font-semibold rounded-lg shadow-sm"
+                            onClick={() => setShowDropdown(!showDropdown)}
+                        >
+                            New Graph
+                        </button>
 
-                    {/* Dropdown menu */}
-            {showDropdown && (
-                <div className="absolute right-0 mt-2 w-44 bg-white border border-gray-200 shadow-lg z-20">
-                    <button
-                            className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-yellow-100 hover:text-gray-900"
-                        onClick={() => handleGenerateGraph("empty")}
-                    >
-                        Create Graph
-                    </button>
-                    <button
-                              className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-yellow-100 hover:text-gray-900"
-                        onClick={() => handleGenerateGraph("random")}
-                    >
-                        Random Graph
-                    </button>
+                        {/* Dropdown menu */}
+                        {showDropdown && (
+                            <div className="absolute right-0 mt-2 w-44 bg-white border border-gray-200 shadow-lg z-20">
+                                <button
+                                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-yellow-100 hover:text-gray-900"
+                                    onClick={() => handleGenerateGraph("empty")}
+                                >
+                                    Create Graph
+                                </button>
+                                <button
+                                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-yellow-100 hover:text-gray-900"
+                                    onClick={() => handleGenerateGraph("random")}
+                                >
+                                    Random Graph
+                                </button>
+                            </div>
+                        )}
                     </div>
-                )}
-                </div>
                     <button
                         className="p-2 bg-gray-100 hover:bg-yellow-100 rounded-full"
                         onClick={handleZoomIn}
@@ -134,7 +135,7 @@ const GraphCanvas = ({ elements, setElements, cyRef }) => {
                         <span className="material-symbols-outlined">center_focus_weak</span>
                     </button>
 
-                   
+
                 </div>
             </div>
 
@@ -209,11 +210,13 @@ const GraphCanvas = ({ elements, setElements, cyRef }) => {
                             if (evt.target === cy) {
                                 const now = Date.now();
                                 if (now - lastClickTime < 300) {
-                                    const id = `n${Date.now()}`;
+                                    const newLabel = prompt("Enter node label:", `N${cy.nodes().length}`);
+                                    if (!newLabel) return;
+                                    const id = newLabel.trim(); // use label as ID too
                                     setElements((prev) => [
                                         ...prev,
                                         {
-                                            data: { id, label: id.toUpperCase() },
+                                            data: { id, label: id },
                                             position: {
                                                 x: evt.position.x,
                                                 y: evt.position.y,
@@ -225,7 +228,7 @@ const GraphCanvas = ({ elements, setElements, cyRef }) => {
                             }
                         });
 
-                        // ✅ Edge-adding logic (click 2 nodes)
+                        //  Edge-adding logic (click 2 nodes)
                         let sourceNode = null;
                         cy.on("tap", "node", (evt) => {
                             const node = evt.target;
@@ -286,15 +289,15 @@ const GraphCanvas = ({ elements, setElements, cyRef }) => {
                                     prev.map((el) =>
                                         el.data.id === edge.id()
                                             ? {
-                                                  ...el,
-                                                  data: {
-                                                      ...el.data,
-                                                      weight: Number(newWeight),
-                                                  },
-                                                  classes: makeDirected
-                                                      ? "directed"
-                                                      : "undirected",
-                                              }
+                                                ...el,
+                                                data: {
+                                                    ...el.data,
+                                                    weight: Number(newWeight),
+                                                },
+                                                classes: makeDirected
+                                                    ? "directed"
+                                                    : "undirected",
+                                            }
                                             : el
                                     )
                                 );
