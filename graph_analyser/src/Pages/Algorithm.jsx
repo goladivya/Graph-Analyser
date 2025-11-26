@@ -1251,6 +1251,50 @@ return {
               </div>
             </div>
 
+            {/* Centrality Algorithms */}
+<div className="w-full bg-yellow rounded-xl shadow-lg p-5 space-y-4 mt-6">
+  <div className="text-lg font-semibold text-gray-800">Centrality Measures</div>
+
+  <div className="flex flex-col sm:flex-row gap-3">
+    <button
+      onClick={() => {
+        const res = runDegreeCentrality();
+        if (res) setResults(res);
+      }}
+      className="bg-amber-600 hover:bg-amber-700 text-white px-3 py-2 rounded-lg shadow-md"
+    >
+      Degree Centrality
+    </button>
+
+    <button
+      onClick={() => {
+        const res = runClosenessCentrality();
+        if (res) setResults(res);
+      }}
+      className="bg-amber-600 hover:bg-amber-700 text-white px-3 py-2 rounded-lg shadow-md"
+    >
+      Closeness Centrality
+    </button>
+
+    <button
+      onClick={() => {
+        const res = runBetweennessCentrality();
+        if (res) setResults(res);
+      }}
+      className="bg-amber-600 hover:bg-amber-700 text-white px-3 py-2 rounded-lg shadow-md"
+    >
+      Betweenness Centrality
+    </button>
+
+    <button
+      onClick={() => resetVisuals()}
+      className="bg-gray-300 hover:bg-gray-400 text-gray-800 px-3 py-2 rounded-lg shadow-md"
+    >
+      Clear
+    </button>
+  </div>
+</div>
+
             {/* HITS Algorithm */}
             <div className="w-full bg-white rounded-xl shadow-lg p-5 space-y-4 mt-6">
               <div className="text-lg font-semibold text-gray-800">HITS Algorithm</div>
