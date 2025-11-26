@@ -6,7 +6,7 @@ const GraphTools = ({ setElements }) => {
   const [target, setTarget] = useState("");
   const [weight, setWeight] = useState("");
   const [directed, setDirected] = useState(false);
-    const [isUndirected, setIsUndirected] = useState(false);
+   // const [isUndirected, setIsUndirected] = useState(false);
 
   const handleAddNode = () => {
     if (!nodeId.trim()) return;
