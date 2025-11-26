@@ -886,6 +886,270 @@ const isGraphStructurallyBalanced = (cy) => {
     return result;
   };
 
+  //Degree Centrality
+const runDegreeCentrality = () => {
+  if (!cyRef.current) return null;
+  const cy = cyRef.current;
+
+  const nodes = cy.nodes();
+  const results = [];
+
+  resetVisuals();
+
+  nodes.forEach(n => {
+    const deg = n.degree();
+    results.push({ node: n.id(), degree: deg });
+
+    // highlight nodes by degree size
+    n.style({
+      "background-color": "#3b82f6",
+      "width": 30 + deg * 5,
+      "height": 30 + deg * 5,
+      "label": `${n.id()} (${deg})`
+    });
+  });
+
+  return {
+    algorithm: "Degree Centrality",
+    results
+  };
+};
+
+
+//Closeness Centrality
+const runClosenessCentrality = () => {
+  if (!cyRef.current) return null;
+  const cy = cyRef.current;
+
+  const nodes = cy.nodes();
+  const closeness = {};
+
+  resetVisuals();
+
+  nodes.forEach(source => {
+    let totalDist = 0;
+
+    const dijkstra = cy.elements().dijkstra(source, e => parseFloat(e.data("weight") || 1));
+    nodes.forEach(target => {
+      if (source.id() !== target.id()) {
+        const dist = dijkstra.distanceTo(target);
+        if (dist !== Infinity) totalDist += dist;
+      }
+    });
+
+    closeness[source.id()] = totalDist > 0 ? (1 / totalDist) : 0;
+  });
+
+  const maxC = Math.max(...Object.values(closeness));
+  const results = [];
+
+  nodes.forEach(n => {
+    const c = closeness[n.id()];
+    results.push({ node: n.id(), closeness: c.toFixed(4) });
+
+    const size = 30 + (c / maxC) * 60;
+
+    n.style({
+      "background-color": "#10b981",
+      width: size,
+      height: size,
+      "label": `${n.id()} (${c.toFixed(3)})`
+    });
+  });
+
+  return {
+    algorithm: "Closeness Centrality",
+    results
+  };
+};
+
+
+
+//Betweenness Centrality
+
+const runBetweennessCentrality = () => {
+  if (!cyRef.current) return null;
+  const cy = cyRef.current;
+
+  const nodes = cy.nodes();
+  const edges = cy.edges();
+
+  resetVisuals();
+
+  const betweenness = {};
+  nodes.forEach(n => betweenness[n.id()] = 0);
+
+  nodes.forEach(s => {
+    const stack = [];
+    const pred = {};
+    const dist = {};
+    const sigma = {};
+
+    nodes.forEach(v => {
+      pred[v.id()] = [];
+      dist[v.id()] = Infinity;
+      sigma[v.id()] = 0;
+    });
+
+    dist[s.id()] = 0;
+    sigma[s.id()] = 1;
+    const queue = [s];
+
+    while (queue.length > 0) {
+      const v = queue.shift();
+      stack.push(v);
+
+      v.neighborhood("node").forEach(w => {
+        if (dist[w.id()] === Infinity) {
+          dist[w.id()] = dist[v.id()] + 1;
+          queue.push(w);
+        }
+        if (dist[w.id()] === dist[v.id()] + 1) {
+          sigma[w.id()] += sigma[v.id()];
+          pred[w.id()].push(v);
+        }
+      });
+    }
+
+    const delta = {};
+    nodes.forEach(v => delta[v.id()] = 0);
+
+    while (stack.length > 0) {
+      const w = stack.pop();
+      pred[w.id()].forEach(v => {
+        delta[v.id()] += (sigma[v.id()] / sigma[w.id()]) * (1 + delta[w.id()]);
+      });
+      if (w.id() !== s.id()) {
+        betweenness[w.id()] += delta[w.id()];
+      }
+    }
+  });
+
+  const maxB = Math.max(...Object.values(betweenness));
+  const results = [];
+
+  nodes.forEach(n => {
+    const b = betweenness[n.id()];
+    results.push({ node: n.id(), betweenness: b.toFixed(3) });
+
+    const size = 30 + (b / maxB) * 70;
+
+    n.style({
+      "background-color": "#f97316",
+      width: size,
+      height: size,
+      "label": `${n.id()} (${b.toFixed(3)})`
+    });
+  });
+
+  return {
+    algorithm: "Betweenness Centrality",
+    results
+  };
+};
+
+
+
+
+
+// Helper to run PageRank algorithm
+const runPageRank = (dampingFactor = 0.85, maxIterations = 100, tolerance = 1e-6) => {
+  if (!cyRef.current) return null;
+  const cy = cyRef.current;
+  const nodes = cy.nodes();
+  const edges = cy.edges();
+
+  if (nodes.length === 0) {
+    alert("Graph is empty.");
+    return null;
+  }
+
+  const N = nodes.length;
+  const ranks = {};
+  nodes.forEach(n => (ranks[n.id()] = 1 / N));
+
+  for (let iter = 0; iter < maxIterations; iter++) {
+    const newRanks = {};
+    let diff = 0;
+
+    nodes.forEach(n => {
+      let incoming = 0;
+      const incomingEdges = edges.filter(e => e.target().id() === n.id());
+      incomingEdges.forEach(e => {
+        const src = e.source().id();
+        const outEdges = edges.filter(ed => ed.source().id() === src);
+        if (outEdges.length > 0) {
+          incoming += ranks[src] / outEdges.length;
+        }
+      });
+      newRanks[n.id()] = (1 - dampingFactor) / N + dampingFactor * incoming;
+      diff += Math.abs(newRanks[n.id()] - ranks[n.id()]);
+    });
+
+    Object.assign(ranks, newRanks);
+
+    if (diff < tolerance) break;
+  }
+
+  // Normalize (optional)
+  const sum = Object.values(ranks).reduce((a, b) => a + b, 0);
+  nodes.forEach(n => (ranks[n.id()] = ranks[n.id()] / sum));
+
+// Highlight nodes based on rank
+resetVisuals();
+
+const maxRank = Math.max(...Object.values(ranks));
+let maxNode = null;
+
+// Determine min and max rank for scaling node sizes
+const rankValues = Object.values(ranks);
+const minRank = Math.min(...rankValues);
+const maxRankValue = Math.max(...rankValues);
+
+// Function to scale node size based on rank
+const scaleSize = (rank, minSize = 30, maxSize = 80) => {
+  if (maxRankValue === minRank) return (minSize + maxSize) / 2; // avoid division by 0
+  return ((rank - minRank) / (maxRankValue - minRank)) * (maxSize - minSize) + minSize;
+};
+
+// 1️⃣ First, find the node with maximum rank
+nodes.forEach(n => {
+  if (ranks[n.id()] === maxRank) maxNode = n;
+});
+
+// 2️⃣ Set style for all nodes (same color, size proportional to rank)
+nodes.forEach(n => {
+  const rank = ranks[n.id()];
+  n.style({
+    "background-color": "#94b5eaff", // same color for all nodes (blue)
+    "width": scaleSize(rank),
+    "height": scaleSize(rank),
+    "border-width": 1,
+    "border-color": "#1e40af",
+    "label": `${n.id()} (${rank.toFixed(3)})`
+  });
+});
+
+// 3️⃣ Highlight the most influential node (border/shadow)
+if (maxNode) {
+  maxNode.style({
+    "border-color": "#f11111ff",   // bright amber
+    "border-width": 5,
+    "shadow-blur": 20,
+    "shadow-color": "#facc15",
+  });
+}
+
+return {
+  algorithm: "PageRank",
+  results: Object.entries(ranks).map(([id, rank]) => ({
+    node: id,
+    rank: rank.toFixed(4)
+  })),
+};
+
+
+};
 
   return (
     <div className="bg-white rounded-xl shadow-lg overflow-hidden">
