@@ -1295,6 +1295,40 @@ return {
   </div>
 </div>
 
+                 {/* PageRank Algorithm Card */}
+<div className="w-full bg-white rounded-xl shadow-lg p-5 space-y-4 mt-6">
+  <div className="text-lg font-semibold text-gray-800">PageRank</div>
+  <div className="text-sm text-gray-600 mb-3">
+    Compute node importance based on the link structure using the PageRank algorithm.
+  </div>
+
+  <div className="flex flex-col sm:flex-row gap-3">
+    <button
+      onClick={() => {
+        const damping = parseFloat(prompt("Enter damping factor (default 0.85):") || 0.85);
+        const res = runPageRank(damping);
+        if (res) setResults(res);
+      }}
+      className="bg-amber-600 hover:bg-amber-700 text-white px-3 py-2 rounded-lg shadow-md"
+    >
+      Run PageRank
+    </button>
+
+    <button
+      onClick={() => resetVisuals()}
+      className="bg-gray-300 hover:bg-gray-400 text-gray-800 px-3 py-2 rounded-lg shadow-md"
+    >
+      Clear
+    </button>
+  </div>
+
+  <div className="text-sm text-gray-500 mt-2">
+    <p>Note: Node size and color intensity represent PageRank value.</p>
+  </div>
+</div>
+    </div>
+
+
             {/* HITS Algorithm */}
             <div className="w-full bg-white rounded-xl shadow-lg p-5 space-y-4 mt-6">
               <div className="text-lg font-semibold text-gray-800">HITS Algorithm</div>
