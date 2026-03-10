@@ -147,14 +147,27 @@ const GraphCanvas = ({ elements, setElements, cyRef }) => {
                         {
                             selector: "node",
                             style: {
-                                backgroundColor: "#fde047",
-                                label: "data(label)",
+                                "background-color": "#facc15",
+                                "label": "data(label)",
                                 "text-valign": "center",
                                 "text-halign": "center",
+
+                                "font-size": "16px",
+                                "font-weight": "bold",
+                                "color": "#111",
+
+                                "text-outline-width": 3,
+                                "text-outline-color": "#ffffff",
+
+                                "width": 45,
+                                "height": 45,
+
                                 "border-width": 3,
-                                "border-color": "#eab308",
-                            },
+                                "border-color": "#eab308"
+                            }
                         },
+
+                        // = EDGES =
                         {
                             selector: "edge.directed",
                             style: {
@@ -166,6 +179,7 @@ const GraphCanvas = ({ elements, setElements, cyRef }) => {
                                 "target-arrow-color": "#6b7280",
                             },
                         },
+
                         {
                             selector: "edge.undirected",
                             style: {
@@ -176,6 +190,38 @@ const GraphCanvas = ({ elements, setElements, cyRef }) => {
                                 "line-color": "#6b7280",
                             },
                         },
+
+                        // Animations 
+                        {
+                            selector: ".visited",
+                            style: {
+                                "background-color": "#60a5fa"
+                            }
+                        },
+
+                        {
+                            selector: ".relaxed",
+                            style: {
+                                "line-color": "#facc15",
+                                "width": 2
+                            }
+                        },
+
+                        {
+                            selector: ".final-path-node",
+                            style: {
+                                "background-color": "#ef4444",
+                                "color": "blue"
+                            }
+                        },
+
+                        {
+                            selector: ".final-path-edge",
+                            style: {
+                                "line-color": "#ef4444",
+                                "width": 3
+                            }
+                        }
                     ]}
                     cy={(cy) => {
                         cyRef.current = cy;
