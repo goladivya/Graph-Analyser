@@ -1,14 +1,22 @@
 import React, { useState, useEffect } from "react";
-import cytoscape from "cytoscape";
+import { dijkstraSteps } from "./Algorithms/Dijkstra";
+import { pageRankSteps } from "./Algorithms/PageRank";
+import { hitsSteps } from "./Algorithms/Hits";
+import { erModelSteps } from "./Algorithms/ermodel";
+import { baModelSteps } from "./Algorithms/bamodel";
+import { labelPropagationSteps } from "./Algorithms/community";
+import { wsModelSteps } from "./Algorithms/wsmodel";
+import { independentCascadeSteps } from "./Algorithms/ic";
+import { playSteps } from "./animation/Animator";
 
 const AlgorithmPanel = ({ cyRef, setResults }) => {
   const [activeTab, setActiveTab] = useState("algorithms");
   const [properties, setProperties] = useState(null);
   const [balanceResult, setBalanceResult] = useState(null);
   const [selectedAlgo, setSelectedAlgo] = useState("");
-  
 
-  
+
+
 
 
   useEffect(() => {
@@ -117,26 +125,26 @@ const AlgorithmPanel = ({ cyRef, setResults }) => {
   }, [cyRef, activeTab]);
 
   const readEdgeSign = edge => {
-  // Robust normalization: accept numbers, numeric strings, whitespace, and unicode minus.
-  const raw = edge.data("sign");
-  if (raw !== undefined && raw !== null && raw !== "") {
-    // normalize unicode minus to ASCII hyphen
-    const s = String(raw).replace(/[−‒–—]/g, "-").trim();
-    const n = Number(s);
-    if (!Number.isNaN(n)) return n < 0 ? -1 : 1;
-  }
+    // Robust normalization: accept numbers, numeric strings, whitespace, and unicode minus.
+    const raw = edge.data("sign");
+    if (raw !== undefined && raw !== null && raw !== "") {
+      // normalize unicode minus to ASCII hyphen
+      const s = String(raw).replace(/[−‒–—]/g, "-").trim();
+      const n = Number(s);
+      if (!Number.isNaN(n)) return n < 0 ? -1 : 1;
+    }
 
-  const w = edge.data("weight");
-  if (w !== undefined && w !== null && w !== "") {
-    const s = String(w).replace(/[−‒–—]/g, "-").trim();
-    const wn = Number(s);
-    if (!Number.isNaN(wn)) return wn < 0 ? -1 : 1;
-  }
+    const w = edge.data("weight");
+    if (w !== undefined && w !== null && w !== "") {
+      const s = String(w).replace(/[−‒–—]/g, "-").trim();
+      const wn = Number(s);
+      if (!Number.isNaN(wn)) return wn < 0 ? -1 : 1;
+    }
 
-  return 1;
-};
+    return 1;
+  };
 
-  
+
   function analyzeBalance() {
     if (!cyRef.current) return null;
     const cy = cyRef.current;
@@ -255,16 +263,16 @@ const AlgorithmPanel = ({ cyRef, setResults }) => {
     });
 
     const conflictSet = new Set(conflictEdgeIds);
-  cy.edges().forEach(edge => {
-    if (!conflictSet.has(edge.id())) {
-      edge.removeClass("conflict");
-      edge.style({
-        "line-color": "#10b981", // green
-        "target-arrow-color": "#10b981",
-        width: 3,
-      });
-    }
-  });
+    cy.edges().forEach(edge => {
+      if (!conflictSet.has(edge.id())) {
+        edge.removeClass("conflict");
+        edge.style({
+          "line-color": "#10b981", // green
+          "target-arrow-color": "#10b981",
+          width: 3,
+        });
+      }
+    });
     //  Pulse animation (safe)
     conflictEdgeIds.forEach(eid => {
       const e = cy.getElementById(eid);
@@ -301,37 +309,37 @@ const AlgorithmPanel = ({ cyRef, setResults }) => {
   };
 
 
-    // Helper: Get sign between two nodes (returns +1 or -1)
-const getSignBetween = (u, v, cy) => {
-  const e = cy.$(`edge[source="${u}"][target="${v}"], edge[source="${v}"][target="${u}"]`);
-  if (e.length === 0) return null;
-  return parseInt(e.data("sign"));
-};
+  // Helper: Get sign between two nodes (returns +1 or -1)
+  const getSignBetween = (u, v, cy) => {
+    const e = cy.$(`edge[source="${u}"][target="${v}"], edge[source="${v}"][target="${u}"]`);
+    if (e.length === 0) return null;
+    return parseInt(e.data("sign"));
+  };
 
-// Helper: Check if a triangle (u, v, w) is structurally balanced
-const isTriangleBalanced = (u, v, w, cy) => {
-  const s1 = getSignBetween(u, v, cy);
-  const s2 = getSignBetween(v, w, cy);
-  const s3 = getSignBetween(u, w, cy);
-  // If any edge missing, ignore this triple
-  if (s1 === null || s2 === null || s3 === null) return true;
-  return s1 * s2 * s3 === 1;  // Balanced if product is +1
-};
+  // Helper: Check if a triangle (u, v, w) is structurally balanced
+  const isTriangleBalanced = (u, v, w, cy) => {
+    const s1 = getSignBetween(u, v, cy);
+    const s2 = getSignBetween(v, w, cy);
+    const s3 = getSignBetween(u, w, cy);
+    // If any edge missing, ignore this triple
+    if (s1 === null || s2 === null || s3 === null) return true;
+    return s1 * s2 * s3 === 1;  // Balanced if product is +1
+  };
 
-// Full graph structural balance check
-const isGraphStructurallyBalanced = (cy) => {
-  const nodes = cy.nodes().map(n => n.id());
-  for (let i = 0; i < nodes.length; i++) {
-    for (let j = i + 1; j < nodes.length; j++) {
-      for (let k = j + 1; k < nodes.length; k++) {
-        if (!isTriangleBalanced(nodes[i], nodes[j], nodes[k], cy)) {
-          return false;
+  // Full graph structural balance check
+  const isGraphStructurallyBalanced = (cy) => {
+    const nodes = cy.nodes().map(n => n.id());
+    for (let i = 0; i < nodes.length; i++) {
+      for (let j = i + 1; j < nodes.length; j++) {
+        for (let k = j + 1; k < nodes.length; k++) {
+          if (!isTriangleBalanced(nodes[i], nodes[j], nodes[k], cy)) {
+            return false;
+          }
         }
       }
     }
-  }
-  return true;
-};
+    return true;
+  };
 
 
   // Greedy improvement: flip only edges that reduce the total number of conflicts
@@ -549,611 +557,248 @@ const isGraphStructurallyBalanced = (cy) => {
   };
 
 
- const refreshEdgeStyles = () => {
-  const cy = cyRef.current;
-  if (!cy) return;
-  cy.edges().forEach(edge => {
-    const sRaw = edge.data("sign");
-    let sign = 1;
-    if (sRaw !== undefined && sRaw !== null && sRaw !== "") {
-      const s = String(sRaw).replace(/[−‒–—]/g, "-").trim();
-      const n = Number(s);
-      sign = Number.isNaN(n) ? (edge.data("weight") < 0 ? -1 : 1) : (n < 0 ? -1 : 1);
-    } else if (edge.data("weight") !== undefined) {
-      const w = Number(edge.data("weight"));
-      sign = Number.isNaN(w) ? 1 : (w < 0 ? -1 : 1);
+  const refreshEdgeStyles = () => {
+    const cy = cyRef.current;
+    if (!cy) return;
+    cy.edges().forEach(edge => {
+      const sRaw = edge.data("sign");
+      let sign = 1;
+      if (sRaw !== undefined && sRaw !== null && sRaw !== "") {
+        const s = String(sRaw).replace(/[−‒–—]/g, "-").trim();
+        const n = Number(s);
+        sign = Number.isNaN(n) ? (edge.data("weight") < 0 ? -1 : 1) : (n < 0 ? -1 : 1);
+      } else if (edge.data("weight") !== undefined) {
+        const w = Number(edge.data("weight"));
+        sign = Number.isNaN(w) ? 1 : (w < 0 ? -1 : 1);
+      }
+
+      const isPos = sign > 0;
+      // store normalized numeric sign back to data so all code sees the same format
+      edge.data("sign", isPos ? 1 : -1);
+
+      edge.style({
+        "line-color": isPos ? "#10b981" : "#ef4444",
+        "target-arrow-color": isPos ? "#10b981" : "#ef4444",
+        "label": isPos ? "1" : "-1",
+        "font-size": "12px",
+        "text-background-opacity": 1,
+        "text-background-color": "#ffffff",
+      });
+    });
+    try { cy.style().update(); } catch (e) { }
+  };
+
+
+
+  const handleMakeBalanced = () => {
+    const res = makeBalancedGreedy(200);
+    if (!res) {
+      alert("No graph present or operation failed.");
+      return;
     }
 
-    const isPos = sign > 0;
-    // store normalized numeric sign back to data so all code sees the same format
-    edge.data("sign", isPos ? 1 : -1);
+    const conflicts = res.remainingConflicts ?? (balanceResult?.conflicts?.length ?? 0);
 
-    edge.style({
-      "line-color": isPos ? "#10b981" : "#ef4444",
-      "target-arrow-color": isPos ? "#10b981" : "#ef4444",
-      "label": isPos ? "1" : "-1",
-      "font-size": "12px",
-      "text-background-opacity": 1,
-      "text-background-color": "#ffffff",
-    });
-  });
-  try { cy.style().update(); } catch (e) {}
-};
+    const resultObj = {
+      algorithm: "Structural Balance (Greedy)",
+      balanced: res.balanced ?? (conflicts === 0),
+      conflicts: balanceResult?.conflicts || [],
+      remainingConflicts: conflicts,
+      graphStatus: [
+        "✓ Connected graph",
+        "✓ No self-loops detected",
+        conflicts
+          ? `⚠ ${conflicts} conflicts remaining`
+          : "✓ No conflicts",
+      ],
+    };
+    setResults(resultObj);
 
-
-  
-   const handleMakeBalanced = () => {
-     const res = makeBalancedGreedy(200);
-     if (!res) {
-       alert("No graph present or operation failed.");
-       return;
-     }
- 
-     const conflicts = res.remainingConflicts ?? (balanceResult?.conflicts?.length ?? 0);
- 
-     const resultObj = {
-       algorithm: "Structural Balance (Greedy)",
-       balanced: res.balanced ?? (conflicts === 0),
-       conflicts: balanceResult?.conflicts || [],
-       remainingConflicts: conflicts,
-       graphStatus: [
-         "✓ Connected graph",
-         "✓ No self-loops detected",
-         conflicts
-           ? `⚠ ${conflicts} conflicts remaining`
-           : "✓ No conflicts",
-       ],
-     };
-     setResults(resultObj);
- 
-     if (res.balanced) {
-       alert(`Graph balanced after ${res.iterations} iteration(s).`);
-     } else {
-       alert(
-         `Stopped after ${res.iterations} iteration(s). Remaining conflicts: ${conflicts || 0}`
-       );
-     }
-   };
+    if (res.balanced) {
+      alert(`Graph balanced after ${res.iterations} iteration(s).`);
+    } else {
+      alert(
+        `Stopped after ${res.iterations} iteration(s). Remaining conflicts: ${conflicts || 0}`
+      );
+    }
+  };
 
 
 
-  const runDijkstra = (sourceId, targetId) => {
 
 
+
+
+
+
+
+  //Degree Centrality
+  const runDegreeCentrality = () => {
     if (!cyRef.current) return null;
     const cy = cyRef.current;
 
-    console.log("All node IDs:", cy.nodes().map(n => n.id()));
-
-    const sourceNode = cy.getElementById(sourceId);
-    const targetNode = cy.getElementById(targetId);
-
-    if (!sourceNode.nonempty() || !targetNode.nonempty()) {
-      alert("Invalid source or target node ID");
-      return null;
-    }
-
     const nodes = cy.nodes();
-    const dist = {};
-    const prev = {};
-    nodes.forEach(n => {
-      dist[n.id()] = Infinity;
-      prev[n.id()] = null;
-    });
-    dist[sourceId] = 0;
+    const results = [];
 
-    const unvisited = new Set(nodes.map(n => n.id()));
-
-    while (unvisited.size > 0) {
-      // Find node with smallest distance
-      let current = null, minDist = Infinity;
-      unvisited.forEach(id => {
-        if (dist[id] < minDist) {
-          minDist = dist[id];
-          current = id;
-        }
-      });
-
-      if (current === null || minDist === Infinity) break;
-      unvisited.delete(current);
-
-      if (current === targetId) break;
-
-      const currentNode = cy.getElementById(current);
-
-      // Correct neighbor edges
-      const edgesToConsider = currentNode.connectedEdges().filter(e => {
-        if (e.data("directed")) {
-          return e.source().id() === current; // only outgoing
-        }
-        return true; // undirected → both ways
-      });
-
-      edgesToConsider.forEach(edge => {
-        const neighborId =
-          edge.source().id() === current ? edge.target().id() : edge.source().id();
-
-        if (!unvisited.has(neighborId)) return;
-
-        let weight = parseFloat(edge.data("weight")) || 1;
-        if (isNaN(weight) || weight < 0) weight = 1;
-
-        if (dist[current] + weight < dist[neighborId]) {
-          dist[neighborId] = dist[current] + weight;
-          prev[neighborId] = current;
-        }
-      });
-    }
-
-    // ✅ Reconstruct path
-    const path = [];
-    let u = targetId;
-    while (u) {
-      path.unshift(u);
-      u = prev[u];
-    }
-
-    if (path[0] !== sourceId) {
-      alert("No path found between selected nodes.");
-      return null;
-    }
-
-    // ✅ Highlight path
     resetVisuals();
-    for (let i = 0; i < path.length - 1; i++) {
-      const e = cy.edges().filter(edge =>
-        (edge.source().id() === path[i] && edge.target().id() === path[i + 1]) ||
-        (!edge.data("directed") &&
-          edge.source().id() === path[i + 1] &&
-          edge.target().id() === path[i])
-      );
-      e.style({
-        "line-color": "#facc15",
-        "target-arrow-color": "#facc15",
-        width: 4,
-      });
-    }
 
-    cy.getElementById(sourceId).style("background-color", "#60a5fa");
-    cy.getElementById(targetId).style("background-color", "#fb923c");
+    nodes.forEach(n => {
+      const deg = n.degree();
+      results.push({ node: n.id(), degree: deg });
+
+      // highlight nodes by degree size
+      n.style({
+        "background-color": "#3b82f6",
+        "width": 30 + deg * 5,
+        "height": 30 + deg * 5,
+        "label": `${n.id()} (${deg})`
+      });
+    });
 
     return {
-      algorithm: "Dijkstra",
-      paths: [
-        {
-          name: `Shortest path from ${sourceId} to ${targetId}`,
-          route: path.join(" → "),
-          cost: dist[targetId],
-        },
-      ],
+      algorithm: "Degree Centrality",
+      results
+    };
+  };
+
+
+  //Closeness Centrality
+  const runClosenessCentrality = () => {
+    if (!cyRef.current) return null;
+    const cy = cyRef.current;
+
+    const nodes = cy.nodes();
+    const closeness = {};
+
+    resetVisuals();
+
+    nodes.forEach(source => {
+      let totalDist = 0;
+
+      const dijkstra = cy.elements().dijkstra(source, e => parseFloat(e.data("weight") || 1));
+      nodes.forEach(target => {
+        if (source.id() !== target.id()) {
+          const dist = dijkstra.distanceTo(target);
+          if (dist !== Infinity) totalDist += dist;
+        }
+      });
+
+      closeness[source.id()] = totalDist > 0 ? (1 / totalDist) : 0;
+    });
+
+    const maxC = Math.max(...Object.values(closeness));
+    const results = [];
+
+    nodes.forEach(n => {
+      const c = closeness[n.id()];
+      results.push({ node: n.id(), closeness: c.toFixed(4) });
+
+      const size = 30 + (c / maxC) * 60;
+
+      n.style({
+        "background-color": "#10b981",
+        width: size,
+        height: size,
+        "label": `${n.id()} (${c.toFixed(3)})`
+      });
+    });
+
+    return {
+      algorithm: "Closeness Centrality",
+      results
     };
   };
 
 
 
-  // Improved HITS implementation (handles directed/undirected, labels & coloring)
-  const runHITS = (maxIterations = 100, tolerance = 1e-6) => {
+  //Betweenness Centrality
+
+  const runBetweennessCentrality = () => {
     if (!cyRef.current) return null;
     const cy = cyRef.current;
 
     const nodes = cy.nodes();
     const edges = cy.edges();
 
-    if (nodes.length === 0) {
-      alert("Graph is empty.");
-      return null;
-    }
+    resetVisuals();
 
-    // Build adjacency lists explicitly, respecting directed flag.
-    // We'll maintain inNeighbors[v] = [u,...] where u -> v,
-    // and outNeighbors[v] = [w,...] where v -> w.
-    const inNeighbors = {};
-    const outNeighbors = {};
-    nodes.forEach(n => {
-      inNeighbors[n.id()] = [];
-      outNeighbors[n.id()] = [];
-    });
+    const betweenness = {};
+    nodes.forEach(n => betweenness[n.id()] = 0);
 
-    edges.forEach(e => {
-      const u = e.source().id();
-      const v = e.target().id();
-      const directed = !!e.data("directed"); // your edges set this sometimes
-      // treat the edge as u -> v
-      outNeighbors[u].push(v);
-      inNeighbors[v].push(u);
+    nodes.forEach(s => {
+      const stack = [];
+      const pred = {};
+      const dist = {};
+      const sigma = {};
 
-      // if the edge is undirected, also add the reverse direction
-      if (!directed) {
-        outNeighbors[v].push(u);
-        inNeighbors[u].push(v);
-      }
-    });
-
-    // Initialize scores (use small positive init to help numeric stability)
-    let hub = {};
-    let auth = {};
-    nodes.forEach(n => {
-      hub[n.id()] = 1.0;
-      auth[n.id()] = 1.0;
-    });
-
-    const l2norm = obj => Math.sqrt(Object.values(obj).reduce((s, x) => s + x * x, 0));
-
-    let iter = 0;
-    while (iter < maxIterations) {
-      const newAuth = {};
-      const newHub = {};
-      nodes.forEach(n => {
-        newAuth[n.id()] = 0;
-        newHub[n.id()] = 0;
+      nodes.forEach(v => {
+        pred[v.id()] = [];
+        dist[v.id()] = Infinity;
+        sigma[v.id()] = 0;
       });
 
-      // auth[v] = sum_{u in inNeighbors[v]} hub[u]
-      Object.keys(inNeighbors).forEach(v => {
-        inNeighbors[v].forEach(u => {
-          newAuth[v] += hub[u] || 0;
+      dist[s.id()] = 0;
+      sigma[s.id()] = 1;
+      const queue = [s];
+
+      while (queue.length > 0) {
+        const v = queue.shift();
+        stack.push(v);
+
+        v.neighborhood("node").forEach(w => {
+          if (dist[w.id()] === Infinity) {
+            dist[w.id()] = dist[v.id()] + 1;
+            queue.push(w);
+          }
+          if (dist[w.id()] === dist[v.id()] + 1) {
+            sigma[w.id()] += sigma[v.id()];
+            pred[w.id()].push(v);
+          }
         });
-      });
+      }
 
-      // hub[u] = sum_{v in outNeighbors[u]} auth[v]
-      Object.keys(outNeighbors).forEach(u => {
-        outNeighbors[u].forEach(v => {
-          newHub[u] += auth[v] || 0;
+      const delta = {};
+      nodes.forEach(v => delta[v.id()] = 0);
+
+      while (stack.length > 0) {
+        const w = stack.pop();
+        pred[w.id()].forEach(v => {
+          delta[v.id()] += (sigma[v.id()] / sigma[w.id()]) * (1 + delta[w.id()]);
         });
-      });
-
-      // Normalize (L2). If norm === 0, leave as zeros (or add tiny eps)
-      const authNorm = l2norm(newAuth);
-      const hubNorm = l2norm(newHub);
-      if (authNorm > 0) {
-        Object.keys(newAuth).forEach(k => (newAuth[k] /= authNorm));
-      } else {
-        // if all zeros (disconnected), keep previous auth scaled (avoid zeroing)
-        Object.keys(newAuth).forEach(k => (newAuth[k] = auth[k] || 0));
+        if (w.id() !== s.id()) {
+          betweenness[w.id()] += delta[w.id()];
+        }
       }
-      if (hubNorm > 0) {
-        Object.keys(newHub).forEach(k => (newHub[k] /= hubNorm));
-      } else {
-        Object.keys(newHub).forEach(k => (newHub[k] = hub[k] || 0));
-      }
+    });
 
-      // compute convergence metric
-      let diff = 0;
-      nodes.forEach(n => {
-        diff += Math.abs(newAuth[n.id()] - auth[n.id()]);
-        diff += Math.abs(newHub[n.id()] - hub[n.id()]);
-      });
-
-      auth = newAuth;
-      hub = newHub;
-
-      if (diff < tolerance) break;
-      iter++;
-    }
-
-    // Visualize: set labels and color nodes by authority (or hub) with a color ramp.
-    // We'll color by authority by default; nodes with higher authority -> green, lower -> blue.
-    //resetVisuals();
-
-    // Avoid divide-by-zero for max
-    const maxAuth = Math.max(...Object.values(auth), 0);
-    const minAuth = Math.min(...Object.values(auth), 0);
-
-    // small helper to interpolate between two colors
-    const interpColor = (t) => {
-      // t in [0,1] -> from blue (low) to green (high)
-      const r = Math.round((1 - t) * 30 + t * 16);   // small red base
-      const g = Math.round((1 - t) * 144 + t * 200); // green channel increases
-      const b = Math.round((1 - t) * 255 + t * 60);  // blue decreases
-      return `rgba(${r}, ${g}, ${b}, ${0.95})`;
-    };
+    const maxB = Math.max(...Object.values(betweenness));
+    const results = [];
 
     nodes.forEach(n => {
-      const id = n.id();
-      const a = auth[id] || 0;
-      const h = hub[id] || 0;
-      // label show both
-      n.data("label", `${id}\nH:${Number(h).toFixed(3)} A:${Number(a).toFixed(3)}`);
+      const b = betweenness[n.id()];
+      results.push({ node: n.id(), betweenness: b.toFixed(3) });
 
-      // map authority to [0,1] safely
-      let t = 0;
-      if (maxAuth > minAuth) {
-        t = (a - minAuth) / (maxAuth - minAuth);
-      }
-      const color = interpColor(t);
+      const size = 30 + (b / maxB) * 70;
+
       n.style({
-        "background-color": color,
-        "border-color": "#0f172a",
-        "border-width": 2,
-        "font-size": "9px",
-        "text-background-opacity": 0.5,
-        "text-background-color": "white",
-        "text-background-padding": "3px",
+        "background-color": "#f97316",
+        width: size,
+        height: size,
+        "label": `${n.id()} (${b.toFixed(3)})`
       });
     });
 
-
-    // prepare results object (plain objects for hubs & authorities)
-    const result = {
-      algorithm: "HITS (Hubs & Authorities)",
-      hubs: hub,
-      authorities: auth,
-      iterations: iter,
-      graphStatus: [
-        "✓ Directed edges considered as links (undirected treated as two-way)",
-        `✓ Iterations: ${iter}`,
-        "✓ Scores computed & nodes labeled/colored",
-      ],
+    return {
+      algorithm: "Betweenness Centrality",
+      results
     };
-
-    setResults(result);
-    return result;
   };
 
-  //Degree Centrality
-const runDegreeCentrality = () => {
-  if (!cyRef.current) return null;
-  const cy = cyRef.current;
-
-  const nodes = cy.nodes();
-  const results = [];
-
-  resetVisuals();
-
-  nodes.forEach(n => {
-    const deg = n.degree();
-    results.push({ node: n.id(), degree: deg });
-
-    // highlight nodes by degree size
-    n.style({
-      "background-color": "#3b82f6",
-      "width": 30 + deg * 5,
-      "height": 30 + deg * 5,
-      "label": `${n.id()} (${deg})`
-    });
-  });
-
-  return {
-    algorithm: "Degree Centrality",
-    results
-  };
-};
-
-
-//Closeness Centrality
-const runClosenessCentrality = () => {
-  if (!cyRef.current) return null;
-  const cy = cyRef.current;
-
-  const nodes = cy.nodes();
-  const closeness = {};
-
-  resetVisuals();
-
-  nodes.forEach(source => {
-    let totalDist = 0;
-
-    const dijkstra = cy.elements().dijkstra(source, e => parseFloat(e.data("weight") || 1));
-    nodes.forEach(target => {
-      if (source.id() !== target.id()) {
-        const dist = dijkstra.distanceTo(target);
-        if (dist !== Infinity) totalDist += dist;
-      }
-    });
-
-    closeness[source.id()] = totalDist > 0 ? (1 / totalDist) : 0;
-  });
-
-  const maxC = Math.max(...Object.values(closeness));
-  const results = [];
-
-  nodes.forEach(n => {
-    const c = closeness[n.id()];
-    results.push({ node: n.id(), closeness: c.toFixed(4) });
-
-    const size = 30 + (c / maxC) * 60;
-
-    n.style({
-      "background-color": "#10b981",
-      width: size,
-      height: size,
-      "label": `${n.id()} (${c.toFixed(3)})`
-    });
-  });
-
-  return {
-    algorithm: "Closeness Centrality",
-    results
-  };
-};
-
-
-
-//Betweenness Centrality
-
-const runBetweennessCentrality = () => {
-  if (!cyRef.current) return null;
-  const cy = cyRef.current;
-
-  const nodes = cy.nodes();
-  const edges = cy.edges();
-
-  resetVisuals();
-
-  const betweenness = {};
-  nodes.forEach(n => betweenness[n.id()] = 0);
-
-  nodes.forEach(s => {
-    const stack = [];
-    const pred = {};
-    const dist = {};
-    const sigma = {};
-
-    nodes.forEach(v => {
-      pred[v.id()] = [];
-      dist[v.id()] = Infinity;
-      sigma[v.id()] = 0;
-    });
-
-    dist[s.id()] = 0;
-    sigma[s.id()] = 1;
-    const queue = [s];
-
-    while (queue.length > 0) {
-      const v = queue.shift();
-      stack.push(v);
-
-      v.neighborhood("node").forEach(w => {
-        if (dist[w.id()] === Infinity) {
-          dist[w.id()] = dist[v.id()] + 1;
-          queue.push(w);
-        }
-        if (dist[w.id()] === dist[v.id()] + 1) {
-          sigma[w.id()] += sigma[v.id()];
-          pred[w.id()].push(v);
-        }
-      });
-    }
-
-    const delta = {};
-    nodes.forEach(v => delta[v.id()] = 0);
-
-    while (stack.length > 0) {
-      const w = stack.pop();
-      pred[w.id()].forEach(v => {
-        delta[v.id()] += (sigma[v.id()] / sigma[w.id()]) * (1 + delta[w.id()]);
-      });
-      if (w.id() !== s.id()) {
-        betweenness[w.id()] += delta[w.id()];
-      }
-    }
-  });
-
-  const maxB = Math.max(...Object.values(betweenness));
-  const results = [];
-
-  nodes.forEach(n => {
-    const b = betweenness[n.id()];
-    results.push({ node: n.id(), betweenness: b.toFixed(3) });
-
-    const size = 30 + (b / maxB) * 70;
-
-    n.style({
-      "background-color": "#f97316",
-      width: size,
-      height: size,
-      "label": `${n.id()} (${b.toFixed(3)})`
-    });
-  });
-
-  return {
-    algorithm: "Betweenness Centrality",
-    results
-  };
-};
 
 
 
 
 
-// Helper to run PageRank algorithm
-const runPageRank = (dampingFactor = 0.85, maxIterations = 100, tolerance = 1e-6) => {
-  if (!cyRef.current) return null;
-  const cy = cyRef.current;
-  const nodes = cy.nodes();
-  const edges = cy.edges();
-
-  if (nodes.length === 0) {
-    alert("Graph is empty.");
-    return null;
-  }
-
-  const N = nodes.length;
-  const ranks = {};
-  nodes.forEach(n => (ranks[n.id()] = 1 / N));
-
-  for (let iter = 0; iter < maxIterations; iter++) {
-    const newRanks = {};
-    let diff = 0;
-
-    nodes.forEach(n => {
-      let incoming = 0;
-      const incomingEdges = edges.filter(e => e.target().id() === n.id());
-      incomingEdges.forEach(e => {
-        const src = e.source().id();
-        const outEdges = edges.filter(ed => ed.source().id() === src);
-        if (outEdges.length > 0) {
-          incoming += ranks[src] / outEdges.length;
-        }
-      });
-      newRanks[n.id()] = (1 - dampingFactor) / N + dampingFactor * incoming;
-      diff += Math.abs(newRanks[n.id()] - ranks[n.id()]);
-    });
-
-    Object.assign(ranks, newRanks);
-
-    if (diff < tolerance) break;
-  }
-
-  // Normalize (optional)
-  const sum = Object.values(ranks).reduce((a, b) => a + b, 0);
-  nodes.forEach(n => (ranks[n.id()] = ranks[n.id()] / sum));
-
-// Highlight nodes based on rank
-resetVisuals();
-
-const maxRank = Math.max(...Object.values(ranks));
-let maxNode = null;
-
-// Determine min and max rank for scaling node sizes
-const rankValues = Object.values(ranks);
-const minRank = Math.min(...rankValues);
-const maxRankValue = Math.max(...rankValues);
-
-// Function to scale node size based on rank
-const scaleSize = (rank, minSize = 30, maxSize = 80) => {
-  if (maxRankValue === minRank) return (minSize + maxSize) / 2; // avoid division by 0
-  return ((rank - minRank) / (maxRankValue - minRank)) * (maxSize - minSize) + minSize;
-};
-
-// 1️⃣ First, find the node with maximum rank
-nodes.forEach(n => {
-  if (ranks[n.id()] === maxRank) maxNode = n;
-});
-
-// 2️⃣ Set style for all nodes (same color, size proportional to rank)
-nodes.forEach(n => {
-  const rank = ranks[n.id()];
-  n.style({
-    "background-color": "#94b5eaff", // same color for all nodes (blue)
-    "width": scaleSize(rank),
-    "height": scaleSize(rank),
-    "border-width": 1,
-    "border-color": "#1e40af",
-    "label": `${n.id()} (${rank.toFixed(3)})`
-  });
-});
-
-// 3️⃣ Highlight the most influential node (border/shadow)
-if (maxNode) {
-  maxNode.style({
-    "border-color": "#f11111ff",   // bright amber
-    "border-width": 5,
-    "shadow-blur": 20,
-    "shadow-color": "#facc15",
-  });
-}
-
-return {
-  algorithm: "PageRank",
-  results: Object.entries(ranks).map(([id, rank]) => ({
-    node: id,
-    rank: rank.toFixed(4)
-  })),
-};
-
-
-};
 
   return (
     <div className="bg-white rounded-xl shadow-lg overflow-hidden">
@@ -1176,106 +821,196 @@ return {
         >
           Properties
         </button>
-        
+
       </div>
 
       <div className="p-4 space-y-2">
         {activeTab === "algorithms" && (
           <>
-  {/* Algorithm Dropdown */}
-  <div className="bg-white rounded-xl shadow p-5 mb-4">
-    <label className="text-sm text-gray-600">Select Algorithm</label>
+            {/* Algorithm Dropdown */}
+            <div className="bg-white rounded-xl shadow p-5 mb-4">
+              <label className="text-sm text-gray-600">Select Algorithm</label>
 
-    <select
-      className="mt-2 w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-700 focus:ring-2 focus:ring-yellow-400"
-      value={selectedAlgo}
-      onChange={(e) => setSelectedAlgo(e.target.value)}
-    >
-      <option value="">-- Choose an Algorithm --</option>
+              <select
+                className="mt-2 w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-700 focus:ring-2 focus:ring-yellow-400"
+                value={selectedAlgo}
+                onChange={(e) => setSelectedAlgo(e.target.value)}
+              >
+                <option value="">-- Choose an Algorithm --</option>
 
-      <optgroup label="Structural Balance">
-        <option value="balance-check">Check Balance</option>
-        <option value="balance-greedy">Make Balanced (Greedy)</option>
-      </optgroup>
+                <optgroup label="Structural Balance">
+                  <option value="balance-check">Check Balance</option>
+                  <option value="balance-greedy">Make Balanced (Greedy)</option>
+                </optgroup>
 
-      <optgroup label="Shortest Path">
-        <option value="dijkstra">Dijkstra</option>
-      </optgroup>
+                <optgroup label="Shortest Path">
+                  <option value="dijkstra">Dijkstra</option>
+                </optgroup>
 
-      <optgroup label="Centrality Measures">
-        <option value="degree">Degree Centrality</option>
-        <option value="closeness">Closeness Centrality</option>
-        <option value="betweenness">Betweenness Centrality</option>
-      </optgroup>
+                <optgroup label="Centrality Measures">
+                  <option value="degree">Degree Centrality</option>
+                  <option value="closeness">Closeness Centrality</option>
+                  <option value="betweenness">Betweenness Centrality</option>
+                </optgroup>
 
-      <optgroup label="Ranking">
-        <option value="pagerank">PageRank</option>
-        <option value="hits">HITS</option>
-      </optgroup>
+                <optgroup label="Ranking">
+                  <option value="pagerank">PageRank</option>
+                  <option value="hits">HITS</option>
+                </optgroup>
 
-    </select>
-  </div>
+                <optgroup label="Graph Generators">
+                  <option value="er">Erdos-Renyi (ER)</option>
+                  <option value="ba">Barabasi-Albert (BA)</option>
+                  <option value="ws">Watts-Strogatz (WS)</option>
+                </optgroup>
 
-  {/* Dynamic Algorithm Card */}
-  {selectedAlgo && (
-    <div className="bg-white rounded-xl shadow-lg p-6 space-y-4">
-      <h2 className="text-xl font-semibold text-gray-800 text-center">
-         {selectedAlgo.replace("-", " ").toUpperCase()}
-      </h2>
+                <optgroup label="Community Detection">
+                  <option value="community">Label Propagation</option>
+                </optgroup>
 
-      {/* Description */}
-      <p className="text-sm text-gray-600">
-        {selectedAlgo === "balance-check" && "Check whether the signed graph is structurally balanced."}
-        {selectedAlgo === "balance-greedy" && "Automatically flip edges to reduce conflicts and balance the graph."}
-        {selectedAlgo === "dijkstra" && "Find the shortest path between two nodes (supports weighted edges)."}
-        {selectedAlgo === "degree" && "Compute degree centrality for each node."}
-        {selectedAlgo === "closeness" && "Measure closeness centrality of all nodes based on shortest paths."}
-        {selectedAlgo === "betweenness" && "Compute betweenness centrality using Brandes’ algorithm."}
-        {selectedAlgo === "pagerank" && "Compute PageRank values using iterative damping algorithm."}
-        {selectedAlgo === "hits" && "Calculate Hub & Authority scores (HITS algorithm)."}
-      </p>
+                <optgroup label="Diffusion Models">
+                  <option value="information-cascade">
+                    Information Cascade
+                  </option>
+                </optgroup>
 
-      {/* BUTTON GROUP */}
-      <div className="flex gap-4 mt-4 justify-center">
-        
-        {/* Run Algorithm Button */}
-        <button
-          onClick={() => {
-            if (selectedAlgo === "balance-check") handleRunBalance();
-            if (selectedAlgo === "balance-greedy") handleMakeBalanced();
-            if (selectedAlgo === "dijkstra") {
-              const s = prompt("Enter source node ID");
-              const t = prompt("Enter target node ID");
-              if (s && t) {
-                const res = runDijkstra(s, t);
-                if (res) setResults(res);
-              }
-            }
-            if (selectedAlgo === "degree") setResults(runDegreeCentrality());
-            if (selectedAlgo === "closeness") setResults(runClosenessCentrality());
-            if (selectedAlgo === "betweenness") setResults(runBetweennessCentrality());
-            if (selectedAlgo === "pagerank") {
-              const d = prompt("Enter damping factor (default 0.85):") || 0.85;
-              setResults(runPageRank(parseFloat(d)));
-            }
-            if (selectedAlgo === "hits") setResults(runHITS());
-          }}
-           className="bg-yellow-400 hover:bg-yellow-500 text-white px-6 py-2 rounded-lg shadow-md"
-        >
-          Run
-        </button>
+              </select>
+            </div>
 
-        {/* Clear Button */}
-        <button
-          onClick={() => resetVisuals()}
-           className="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-lg shadow-md"
-        >
-          Clear
-        </button>
-      </div>
-    </div>
-  )}
-</>
+            {/* Dynamic Algorithm Card */}
+            {selectedAlgo && (
+              <div className="bg-white rounded-xl shadow-lg p-6 space-y-4">
+                <h2 className="text-xl font-semibold text-gray-800 text-center">
+                  {selectedAlgo.replace("-", " ").toUpperCase()}
+                </h2>
+
+                {/* Description */}
+                <p className="text-sm text-gray-600">
+                  {selectedAlgo === "balance-check" && "Check whether the signed graph is structurally balanced."}
+                  {selectedAlgo === "balance-greedy" && "Automatically flip edges to reduce conflicts and balance the graph."}
+                  {selectedAlgo === "dijkstra" && "Find the shortest path between two nodes (supports weighted edges)."}
+                  {selectedAlgo === "degree" && "Compute degree centrality for each node."}
+                  {selectedAlgo === "closeness" && "Measure closeness centrality of all nodes based on shortest paths."}
+                  {selectedAlgo === "betweenness" && "Compute betweenness centrality using Brandes’ algorithm."}
+                  {selectedAlgo === "pagerank" && "Compute PageRank values using iterative damping algorithm."}
+                  {selectedAlgo === "community" && "Detect communities using label propagation."}
+                  {selectedAlgo === "er" && "Generate a random graph using the Erdos-Renyi model."}
+                  {selectedAlgo === "ba" && "Generate a scale-free graph using the Barabasi-Albert model."}
+                  {selectedAlgo === "ws" && "Generate a small-world graph using the Watts-Strogatz model."}
+                  {selectedAlgo === "information-cascade" && "Simulate an information cascade using the Independent Cascade model."}
+                </p>
+
+                {/* BUTTON GROUP */}
+                <div className="flex gap-4 mt-4 justify-center">
+
+                  {/* Run Algorithm Button */}
+                  <button
+                    onClick={async () => {
+                      if (selectedAlgo === "balance-check") handleRunBalance();
+                      if (selectedAlgo === "balance-greedy") handleMakeBalanced();
+                      if (selectedAlgo === "dijkstra") {
+                        const s = prompt("Source");
+                        const t = prompt("Target");
+                        const steps = dijkstraSteps(cyRef.current, s, t);
+                        playSteps(cyRef.current, steps, 700);
+                        setResults(steps.result);
+                      }
+                      if (selectedAlgo === "degree") setResults(runDegreeCentrality());
+                      if (selectedAlgo === "closeness") setResults(runClosenessCentrality());
+                      if (selectedAlgo === "betweenness") setResults(runBetweennessCentrality());
+                      if (selectedAlgo === "pagerank") {
+                        const d = prompt("Enter damping factor (default 0.85):") || 0.85;
+                        const response = pageRankSteps(cyRef.current);
+                        playSteps(cyRef.current, response.steps, 700);
+                        setResults(response.result);
+                      }
+                      if (selectedAlgo === "hits") {
+                        const response = hitsSteps(cyRef.current, 25)
+                        playSteps(cyRef.current, response.steps, 700);
+                        setResults(response.result);
+                      }
+                      if (selectedAlgo === "er") {
+                        const n = parseInt(prompt("Number of nodes (e.g. 10):")) || 10;
+                        const p = parseFloat(prompt("Probability (0-1, e.g. 0.3):")) || 0.3;
+
+                        const response = erModelSteps(cyRef.current, n, p);
+                        await playSteps(cyRef.current, response.steps, 300);
+
+                        cyRef.current.layout({ name: "cose" }).run();  // auto arrange
+                        setResults(response);
+                        return;
+                      }
+                      if (selectedAlgo === "ba") {
+
+                        const n = parseInt(prompt("Total nodes (e.g. 15):")) || 15;
+                        const m = parseInt(prompt("Edges per new node (e.g. 2):")) || 2;
+
+                        const response = baModelSteps(cyRef.current, n, m);
+
+                        await playSteps(cyRef.current, response.steps, 300);
+                         cyRef.current.layout({ name: "cose" }).run(); 
+
+                        setResults(response.result);
+                        return;
+                      }
+
+                      if (selectedAlgo === "community") {
+                        const response = labelPropagationSteps(cyRef.current, 10);
+                        await playSteps(cyRef.current, response.steps, 500);
+                        setResults(response);
+                      }
+
+                      if (selectedAlgo === "ws") {
+                        const n = parseInt(prompt("Number of nodes (e.g. 20):")) || 20;
+                        const k = parseInt(prompt("Each node connected to k neighbors (e.g. 4):")) || 4;
+                        const p = parseFloat(prompt("Rewiring probability (0-1, e.g. 0.1):")) || 0.1;
+                        const response = wsModelSteps(cyRef.current, n, k, p);
+                        await playSteps(cyRef.current, response.steps, 300);
+
+                        //cyRef.current.layout({ name: "cose" }).run();
+                        setResults(response);
+                        return;
+                      }
+
+                      if (selectedAlgo === "information-cascade") {
+
+                        const probability =
+                          parseFloat(prompt("Propagation probability (0-1, e.g. 0.4):")) || 0.4;
+
+                        const seedInput =
+                          prompt("Enter seed node IDs separated by comma (e.g. N0,N1):") || "N0";
+
+                        const seedNodes = seedInput.split(",").map(s => s.trim());
+
+                        const response = independentCascadeSteps(
+                          cyRef.current,
+                          seedNodes,
+                          probability
+                        );
+
+                        await playSteps(cyRef.current, response.steps, 700);
+
+                        setResults(response.result);
+                        return;
+                      }
+
+                    }}
+                    className="bg-yellow-400 hover:bg-yellow-500 text-white px-6 py-2 rounded-lg shadow-md"
+                  >
+                    Run
+                  </button>
+
+                  {/* Clear Button */}
+                  <button
+                    onClick={() => resetVisuals()}
+                    className="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-lg shadow-md"
+                  >
+                    Clear
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
 
         )}
 
@@ -1331,7 +1066,7 @@ return {
           )
         )}
 
-        
+
       </div>
     </div>
   );
