@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { dijkstraSteps } from "./Algorithms/Dijkstra";
 import { pageRankSteps } from "./Algorithms/PageRank";
 import { hitsSteps } from "./Algorithms/Hits";
@@ -7,1067 +7,729 @@ import { baModelSteps } from "./Algorithms/bamodel";
 import { labelPropagationSteps } from "./Algorithms/community";
 import { wsModelSteps } from "./Algorithms/wsmodel";
 import { independentCascadeSteps } from "./Algorithms/ic";
-import { playSteps } from "./animation/Animator";
+import { balanceCheckSteps, balanceGreedySteps } from "./Algorithms/StructuralBalance";
+import { playSteps, AnimatorController } from "./animation/Animator";
+
+// ─── Animation speed options ──────────────────────────────────────────────────
+const SPEED_OPTIONS = [
+  { label: "Slow", ms: 1200 },
+  { label: "Normal", ms: 600 },
+  { label: "Fast", ms: 100 },
+];
 
 const AlgorithmPanel = ({ cyRef, setResults }) => {
   const [activeTab, setActiveTab] = useState("algorithms");
   const [properties, setProperties] = useState(null);
-  const [balanceResult, setBalanceResult] = useState(null);
   const [selectedAlgo, setSelectedAlgo] = useState("");
+  const [balanceResult, setBalanceResult] = useState(null);
 
+  // Animation state
+  const controllerRef = useRef(null);   // AnimatorController
+  const [isRunning, setIsRunning] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const [speedIdx, setSpeedIdx] = useState(1);   // index into SPEED_OPTIONS
+  const [stepCount, setStepCount] = useState(null); // total steps (for info display)
 
-
-
-
+  // ─── Graph property calculation ─────────────────────────────────────────────
   useEffect(() => {
     if (!cyRef.current) return;
     const cy = cyRef.current;
 
-
-    //Clustering Coefficient Estimation
     function estimateClusteringCoefficient(cy, trials = 1000) {
-      let triangles = 0;
-      let attempts = 0;
-
+      let triangles = 0, attempts = 0;
       for (let i = 0; i < trials; i++) {
-        // 1. Pick a random node
         const nodes = cy.nodes();
         const v = nodes[Math.floor(Math.random() * nodes.length)];
         const neighbors = v.neighborhood("node");
-
-        // 2. Need at least 2 neighbors to form a triangle
         if (neighbors.length < 2) continue;
-
-        // 3. Pick two random neighbors
         const u = neighbors[Math.floor(Math.random() * neighbors.length)];
         let w;
-        do {
-          w = neighbors[Math.floor(Math.random() * neighbors.length)];
-        } while (w.id() === u.id()); // ensure u != w
-
-        // 4. Check if they are connected
-        if (cy.getElementById(u.id()).edgesWith(w).length > 0) {
-          triangles++;
-        }
-
+        do { w = neighbors[Math.floor(Math.random() * neighbors.length)]; } while (w.id() === u.id());
+        if (cy.getElementById(u.id()).edgesWith(w).length > 0) triangles++;
         attempts++;
       }
-
-      // 5. Return estimated clustering coefficient
-      return attempts > 0 ? (triangles / attempts) : 0;
+      return attempts > 0 ? triangles / attempts : 0;
     }
-
 
     function calculateProperties() {
       const nodes = cy.nodes();
       const edges = cy.edges();
       const n = nodes.length;
       const m = edges.length;
-
       if (n === 0) return;
 
-      const size = m;
       const density = cy.edges().some(e => e.data("directed"))
         ? m / (n * (n - 1))
         : (2 * m) / (n * (n - 1));
+      const degrees = nodes.map(nd => nd.degree());
 
-      const degrees = nodes.map(n => n.degree());
-      const minDeg = Math.min(...degrees);
-      const maxDeg = Math.max(...degrees);
-      const avgDeg = degrees.reduce((a, b) => a + b, 0) / n;
-
-      const components = cy.elements().components();
-      const connectedComponents = components.length;
-      const isolatedNodes = nodes.filter(n => n.degree() === 0).length;
-
-      // DFS for cycle detection
-      let hasCycle = false;
       const visited = new Set();
       const stack = new Set();
+      let hasCycle = false;
       function dfs(node) {
-        if (stack.has(node.id())) {
-          hasCycle = true;
-          return;
-        }
+        if (stack.has(node.id())) { hasCycle = true; return; }
         if (visited.has(node.id())) return;
-        visited.add(node.id());
-        stack.add(node.id());
+        visited.add(node.id()); stack.add(node.id());
         node.connectedEdges().forEach(e => {
           const target = e.source().id() === node.id() ? e.target() : e.source();
           dfs(target);
         });
         stack.delete(node.id());
       }
-      nodes.forEach(n => {
-        if (!visited.has(n.id())) dfs(n);
-      });
-
-      const clusteringCoeff = estimateClusteringCoefficient(cy, 1000);
+      nodes.forEach(nd => { if (!visited.has(nd.id())) dfs(nd); });
 
       setProperties({
-        size,
+        size: m,
         density: density.toFixed(3),
-        minDeg,
-        maxDeg,
-        avgDeg: avgDeg.toFixed(2),
-        connectedComponents,
-        isolatedNodes,
+        minDeg: Math.min(...degrees),
+        maxDeg: Math.max(...degrees),
+        avgDeg: (degrees.reduce((a, b) => a + b, 0) / n).toFixed(2),
+        connectedComponents: cy.elements().components().length,
+        isolatedNodes: nodes.filter(nd => nd.degree() === 0).length,
         hasCycle: hasCycle ? "Yes" : "No",
-        clusteringCoeff: clusteringCoeff.toFixed(3),
+        clusteringCoeff: estimateClusteringCoefficient(cy, 1000).toFixed(3),
       });
     }
 
     calculateProperties();
     cy.on("add remove data", calculateProperties);
-    return () => {
-      cy.removeListener("add remove data", calculateProperties);
-    };
+    return () => cy.removeListener("add remove data", calculateProperties);
   }, [cyRef, activeTab]);
 
-  const readEdgeSign = edge => {
-    // Robust normalization: accept numbers, numeric strings, whitespace, and unicode minus.
-    const raw = edge.data("sign");
-    if (raw !== undefined && raw !== null && raw !== "") {
-      // normalize unicode minus to ASCII hyphen
-      const s = String(raw).replace(/[−‒–—]/g, "-").trim();
-      const n = Number(s);
-      if (!Number.isNaN(n)) return n < 0 ? -1 : 1;
-    }
-
-    const w = edge.data("weight");
-    if (w !== undefined && w !== null && w !== "") {
-      const s = String(w).replace(/[−‒–—]/g, "-").trim();
-      const wn = Number(s);
-      if (!Number.isNaN(wn)) return wn < 0 ? -1 : 1;
-    }
-
-    return 1;
-  };
-
-
-  function analyzeBalance() {
-    if (!cyRef.current) return null;
+  // ─── Visual helpers ──────────────────────────────────────────────────────────
+  const resetVisuals = useCallback(() => {
+    if (!cyRef.current) return;
     const cy = cyRef.current;
+    cy.nodes().removeClass("balance-A balance-B unassigned visited final-path");
+    cy.edges().removeClass("relaxed conflict flipped");
+    cy.nodes().style({ "background-color": null, color: null, "border-color": null, "border-width": null, label: null, width: null, height: null });
+    cy.edges().style({ "line-color": null, "target-arrow-color": null, width: null, "line-style": null, label: null });
+    cy.nodes().forEach(n => n.style("label", n.data("id")));
+  }, [cyRef]);
+
+  // ─── Animation lifecycle ─────────────────────────────────────────────────────
+  const stopAnimation = useCallback(() => {
+    if (controllerRef.current) {
+      controllerRef.current.cancel();
+      controllerRef.current = null;
+    }
+    setIsRunning(false);
+    setIsPaused(false);
+  }, []);
+
+  const handlePause = useCallback(() => {
+    if (!controllerRef.current) return;
+    controllerRef.current.pause();
+    setIsPaused(true);
+  }, []);
+
+  const handleResume = useCallback(() => {
+    if (!controllerRef.current) return;
+    controllerRef.current.resume();
+    setIsPaused(false);
+  }, []);
+
+  const runAnimation = useCallback((steps, result, delay, params) => {
+    stopAnimation();
+    setIsRunning(true);
+    setIsPaused(false);
+    setStepCount(steps.length);
+
+    const ctrl = new AnimatorController();
+    controllerRef.current = ctrl;
+
+    playSteps(cyRef.current, steps, delay, ctrl);
+    ctrl.done.then(() => {
+      if (!ctrl._cancelled) { setResults(result, params ?? {}); }
+      setIsRunning(false);
+      setIsPaused(false);
+      controllerRef.current = null;
+    });
+  }, [cyRef, setResults, stopAnimation]);
+
+  // ─── Main run dispatcher ─────────────────────────────────────────────────────
+  const handleRun = useCallback(() => {
+    if (!cyRef.current) return;
+    const cy = cyRef.current;
+    const delay = SPEED_OPTIONS[speedIdx].ms;
+
     resetVisuals();
 
-    const nodes = cy.nodes();
-    const assignment = {};
-    const conflicts = new Set();
-
-    // Initialize assignment for all nodes
-    nodes.forEach(n => {
-      assignment[n.id()] = null;
-    });
-
-    // BFS on each connected component
-    nodes.forEach(start => {
-      if (assignment[start.id()] === null) {
-        const queue = [start.id()];
-        assignment[start.id()] = 0; // Start assigning group 0 to the first node
-
-        while (queue.length > 0) {
-          const curId = queue.shift();
-          const curNode = cy.getElementById(curId);
-
-          curNode.connectedEdges().forEach(edge => {
-            const u = edge.source().id();
-            const v = edge.target().id();
-            const otherId = u === curId ? v : u;
-
-            // Get edge sign (+1 = friendly, -1 = hostile)
-            const sign = readEdgeSign(edge);
-            const desiredSame = sign === 1;
-
-            if (assignment[otherId] === null) {
-              // Assign group based on edge type
-              assignment[otherId] = desiredSame
-                ? assignment[curId]
-                : 1 - assignment[curId];
-              queue.push(otherId);
-            } else {
-              // Check if existing assignment is consistent
-              const consistent = desiredSame
-                ? assignment[otherId] === assignment[curId]
-                : assignment[otherId] !== assignment[curId];
-
-              if (!consistent) {
-                conflicts.add(edge.id());
-              }
-            }
-          });
-        }
-      }
-    });
-
-    // Final result
-    const isBalanced = conflicts.size === 0;
-
-    // Highlight conflicts visually (optional)
-    visualizeBalance(assignment, Array.from(conflicts));
-
-    const result = {
-      balanced: isBalanced,
-      partition: assignment,
-      conflicts: Array.from(conflicts),
-      conflictCount: conflicts.size,
-    };
-    setBalanceResult(result);
-    return result;
-  }
-
-
-
-  const resetVisuals = () => {
-    if (!cyRef.current) return;
-    const cy = cyRef.current;
-
-    // Remove all algorithm-specific classes
-    cy.nodes().removeClass("balance-A balance-B unassigned");
-    cy.edges().removeClass("pos neg conflict flipped");
-
-    // Reset colors
-    cy.nodes().style({
-      "background-color": null,
-      "color": null
-    });
-
-    cy.edges().style({
-      "line-color": null,
-      "target-arrow-color": null
-    });
-
-    // Restore original labels (remove hub/authority score text)
-    cy.nodes().forEach((node) => {
-      node.style("label", node.data("id"));
-    });
-  };
-
-
-  //  visualizeBalance - no .play()
-  const visualizeBalance = (assignment, conflictEdgeIds = []) => {
-    if (!cyRef.current) return;
-    const cy = cyRef.current;
-
-    cy.nodes().forEach(node => {
-      const id = node.id();
-      if (assignment[id] === 0) {
-        node.addClass("balance-A");
-        node.style("background-color", "#60a5fa");
-      } else if (assignment[id] === 1) {
-        node.addClass("balance-B");
-        node.style("background-color", "#fb923c");
-      } else {
-        node.addClass("unassigned");
-        node.style("background-color", "#cbd5e1");
-      }
-    });
-
-    const conflictSet = new Set(conflictEdgeIds);
-    cy.edges().forEach(edge => {
-      if (!conflictSet.has(edge.id())) {
-        edge.removeClass("conflict");
-        edge.style({
-          "line-color": "#10b981", // green
-          "target-arrow-color": "#10b981",
-          width: 3,
-        });
-      }
-    });
-    //  Pulse animation (safe)
-    conflictEdgeIds.forEach(eid => {
-      const e = cy.getElementById(eid);
-      if (e && e.length > 0) {
-        e.addClass("conflict");
-        let pulses = 3;
-
-        const pulse = () => {
-          if (!e || e.removed()) return;
-          e.animate(
-            { style: { "line-color": "#ffffff", width: 6 } },
-            {
-              duration: 250,
-              complete: () => {
-                if (!e || e.removed()) return;
-                e.animate(
-                  { style: { "line-color": "#ff0066", width: 4 } },
-                  {
-                    duration: 250,
-                    complete: () => {
-                      pulses--;
-                      if (pulses > 0) pulse();
-                    },
-                  }
-                );
-              },
-            }
-          );
-        };
-
-        pulse();
-      }
-    });
-  };
-
-
-  // Helper: Get sign between two nodes (returns +1 or -1)
-  const getSignBetween = (u, v, cy) => {
-    const e = cy.$(`edge[source="${u}"][target="${v}"], edge[source="${v}"][target="${u}"]`);
-    if (e.length === 0) return null;
-    return parseInt(e.data("sign"));
-  };
-
-  // Helper: Check if a triangle (u, v, w) is structurally balanced
-  const isTriangleBalanced = (u, v, w, cy) => {
-    const s1 = getSignBetween(u, v, cy);
-    const s2 = getSignBetween(v, w, cy);
-    const s3 = getSignBetween(u, w, cy);
-    // If any edge missing, ignore this triple
-    if (s1 === null || s2 === null || s3 === null) return true;
-    return s1 * s2 * s3 === 1;  // Balanced if product is +1
-  };
-
-  // Full graph structural balance check
-  const isGraphStructurallyBalanced = (cy) => {
-    const nodes = cy.nodes().map(n => n.id());
-    for (let i = 0; i < nodes.length; i++) {
-      for (let j = i + 1; j < nodes.length; j++) {
-        for (let k = j + 1; k < nodes.length; k++) {
-          if (!isTriangleBalanced(nodes[i], nodes[j], nodes[k], cy)) {
-            return false;
-          }
-        }
-      }
-    }
-    return true;
-  };
-
-
-  // Greedy improvement: flip only edges that reduce the total number of conflicts
-  const makeBalancedGreedy = (maxIterations = 1000) => {
-    if (!cyRef.current) return null;
-    const cy = cyRef.current;
-
-    const computeConflictsAndAssignment = () => {
-      const nodes = cy.nodes();
-      const visited = new Set();
-      const assignment = {};
-
-      // BFS assignment
-      const bfsAssign = startId => {
-        const queue = [startId];
-        assignment[startId] = 0;
-        visited.add(startId);
-
-        while (queue.length) {
-          const curId = queue.shift();
-          const cur = cy.getElementById(curId);
-
-          cur.connectedEdges().forEach(e => {
-            const u = e.source().id();
-            const v = e.target().id();
-            const otherId = u === curId ? v : u;
-            const sign = readEdgeSign(e);
-            const desiredSame = sign === 1;
-
-            if (!(otherId in assignment)) {
-              assignment[otherId] = desiredSame
-                ? assignment[curId]
-                : 1 - assignment[curId];
-              visited.add(otherId);
-              queue.push(otherId);
-            }
-          });
-        }
+    if (selectedAlgo === "balance-check") {
+      const { steps, result } = balanceCheckSteps(cy);
+      if (!result) { alert("No graph present."); return; }
+      const resultObj = {
+        algorithm: "Structural Balance",
+        balanced: result.balanced,
+        conflicts: result.conflicts,
+        conflictCount: result.conflictCount,
+        graphStatus: [
+          "✓ Connected graph",
+          "✓ No self-loops detected",
+          result.conflictCount > 0
+            ? `⚠ ${result.conflictCount} conflict(s) detected`
+            : "✓ No conflicts"
+        ]
       };
+      runAnimation(steps, resultObj, delay, {});
+      return;
+    }
 
+    if (selectedAlgo === "balance-greedy") {
+      const { steps, result } = balanceGreedySteps(cy, 200);
+      if (!result) { alert("No graph present."); return; }
+      const resultObj = {
+        algorithm: "Structural Balance (Greedy)",
+        balanced: result.balanced,
+        conflicts: result.conflicts,
+        remainingConflicts: result.remainingConflicts,
+        graphStatus: [
+          "✓ Greedy repair applied",
+          result.remainingConflicts
+            ? `⚠ ${result.remainingConflicts} conflict(s) remaining after ${result.iterations} iterations`
+            : `✓ Balanced after ${result.iterations} iteration(s)`
+        ]
+      };
+      runAnimation(steps, resultObj, Math.min(delay, 400), {});
+      return;
+    }
+
+    if (selectedAlgo === "dijkstra") {
+      const s = prompt("Source node ID:");
+      const t = prompt("Target node ID:");
+      if (!s || !t) return;
+      const { steps, result } = dijkstraSteps(cy, s, t);
+      runAnimation(steps, result, delay, { source: s, target: t });
+      return;
+    }
+
+    if (selectedAlgo === "pagerank") {
+      const dampingInput = prompt("Enter damping factor (default 0.85):") || "0.85";
+      const damping = parseFloat(dampingInput) || 0.85;
+      const { steps, result } = pageRankSteps(cy, damping);
+      runAnimation(steps, result, delay, { damping });
+      return;
+    }
+
+    if (selectedAlgo === "hits") {
+      const { steps, result } = hitsSteps(cy, 25);
+      runAnimation(steps, result, delay, {});
+      return;
+    }
+
+    if (selectedAlgo === "degree") {
+      const nodes = cy.nodes();
+      const results = [];
       nodes.forEach(n => {
-        if (!visited.has(n.id())) bfsAssign(n.id());
+        const deg = n.degree();
+        results.push({ node: n.id(), degree: deg });
+        n.style({ "background-color": "#3b82f6", width: 30 + deg * 5, height: 30 + deg * 5, label: `${n.id()} (${deg})` });
       });
+      setResults({ algorithm: "Degree Centrality", results }, {});
+      return;
+    }
 
-      // explicit conflict detection
-      const conflicts = [];
-      cy.edges().forEach(e => {
-        const u = e.source().id();
-        const v = e.target().id();
-        const sign = readEdgeSign(e);
-        const consistent =
-          sign === 1
-            ? assignment[u] === assignment[v]
-            : assignment[u] !== assignment[v];
-        if (!consistent) conflicts.push(e.id());
-      });
-
-      return { conflicts, assignment };
-    };
-
-    const countConflicts = () => {
-      let cnt = 0;
+    if (selectedAlgo === "closeness") {
       const nodes = cy.nodes();
-      const assignment = {};
-      // build assignment via BFS (same as above simplified)
-      const visited = new Set();
-      const bfsAssign = startId => {
-        const queue = [startId];
-        assignment[startId] = 0;
-        visited.add(startId);
-        while (queue.length) {
-          const curId = queue.shift();
-          const cur = cy.getElementById(curId);
-          cur.connectedEdges().forEach(e => {
-            const u = e.source().id();
-            const v = e.target().id();
-            const otherId = u === curId ? v : u;
-            const sign = readEdgeSign(e);
-            const desiredSame = sign === 1;
-            if (!(otherId in assignment)) {
-              assignment[otherId] = desiredSame ? assignment[curId] : 1 - assignment[curId];
-              visited.add(otherId);
-              queue.push(otherId);
-            }
+      const closeness = {};
+      nodes.forEach(src => {
+        let total = 0;
+        const d = cy.elements().dijkstra(src, e => parseFloat(e.data("weight") || 1));
+        nodes.forEach(tgt => { if (src.id() !== tgt.id()) { const dist = d.distanceTo(tgt); if (dist !== Infinity) total += dist; } });
+        closeness[src.id()] = total > 0 ? 1 / total : 0;
+      });
+      const maxC = Math.max(...Object.values(closeness));
+      const results = [];
+      nodes.forEach(n => {
+        const c = closeness[n.id()];
+        results.push({ node: n.id(), closeness: c.toFixed(4) });
+        const size = 30 + (c / maxC) * 60;
+        n.style({ "background-color": "#10b981", width: size, height: size, label: `${n.id()} (${c.toFixed(3)})` });
+      });
+      setResults({ algorithm: "Closeness Centrality", results }, {});
+      return;
+    }
+
+    if (selectedAlgo === "betweenness") {
+      const nodes = cy.nodes();
+      const betweenness = {};
+      nodes.forEach(n => { betweenness[n.id()] = 0; });
+      nodes.forEach(s => {
+        const stack = [], pred = {}, dist = {}, sigma = {};
+        nodes.forEach(v => { pred[v.id()] = []; dist[v.id()] = Infinity; sigma[v.id()] = 0; });
+        dist[s.id()] = 0; sigma[s.id()] = 1;
+        const queue = [s];
+        while (queue.length > 0) {
+          const v = queue.shift(); stack.push(v);
+          v.neighborhood("node").forEach(w => {
+            if (dist[w.id()] === Infinity) { dist[w.id()] = dist[v.id()] + 1; queue.push(w); }
+            if (dist[w.id()] === dist[v.id()] + 1) { sigma[w.id()] += sigma[v.id()]; pred[w.id()].push(v); }
           });
         }
-      };
-      nodes.forEach(n => { if (!visited.has(n.id())) bfsAssign(n.id()); });
-
-      cy.edges().forEach(e => {
-        const u = e.source().id();
-        const v = e.target().id();
-        const sign = readEdgeSign(e);
-        const consistent = sign === 1 ? assignment[u] === assignment[v] : assignment[u] !== assignment[v];
-        if (!consistent) cnt++;
+        const delta = {};
+        nodes.forEach(v => { delta[v.id()] = 0; });
+        while (stack.length > 0) {
+          const w = stack.pop();
+          pred[w.id()].forEach(v => { delta[v.id()] += (sigma[v.id()] / sigma[w.id()]) * (1 + delta[w.id()]); });
+          if (w.id() !== s.id()) betweenness[w.id()] += delta[w.id()];
+        }
       });
-      return cnt;
-    };
-
-    let iter = 0;
-    let lastConflicts = null;
-
-    while (iter < maxIterations) {
-      const { conflicts, assignment } = computeConflictsAndAssignment();
-      const currentConflictCount = conflicts.length;
-
-      // if already zero conflicts, success
-      if (currentConflictCount === 0 && isGraphStructurallyBalanced(cy)) {
-        visualizeBalance(assignment, []);
-        setBalanceResult({ balanced: true, partition: assignment, conflicts: [] });
-        return { balanced: true, iterations: iter };
-      }
-
-      // For each conflicting edge, evaluate net change if flipped
-      const flipCandidates = [];
-
-      for (const eid of conflicts) {
-        const e = cy.getElementById(eid);
-        if (!e || e.removed()) continue;
-        const curSign = readEdgeSign(e);
-        const newSign = curSign === 1 ? -1 : 1;
-
-        // temporarily flip
-        e.data("sign", newSign);
-        const newCount = countConflicts();
-        // restore
-        e.data("sign", curSign);
-
-        const delta = newCount - currentConflictCount; // negative -> improvement
-        flipCandidates.push({ eid, delta, newSign });
-      }
-
-      // pick flips that strictly reduce conflicts (delta < 0)
-      const improving = flipCandidates.filter(c => c.delta < 0).sort((a, b) => a.delta - b.delta);
-
-      if (improving.length === 0) {
-        // no single-edge flip improves => try flipping the single best edge anyway (may help escape local minima)
-        // pick the edge with smallest delta (least worsening)
-        flipCandidates.sort((a, b) => a.delta - b.delta);
-        if (flipCandidates.length === 0) break;
-        const best = flipCandidates[0];
-        const e = cy.getElementById(best.eid);
-        const curSign = readEdgeSign(e);
-        const newSign = curSign === 1 ? -1 : 1;
-        e.data("sign", newSign);
-        e.addClass("flipped");
-      } else {
-        // apply top-k improving flips (k=1 to avoid oscillation) — choose best
-        const best = improving[0];
-        const e = cy.getElementById(best.eid);
-        e.data("sign", best.newSign);
-        e.addClass("flipped");
-      }
-
-      // update edge styles after changes
-      refreshEdgeStyles();
-
-      // safety: stop if no progress over two iterations
-      const newConflictCount = countConflicts();
-      if (lastConflicts !== null && newConflictCount >= lastConflicts) {
-        // no meaningful progress, break
-        break;
-      }
-      lastConflicts = newConflictCount;
-
-      iter++;
-    }
-
-    const final = computeConflictsAndAssignment();
-    visualizeBalance(final.assignment, final.conflicts);
-    setBalanceResult({
-      balanced: final.conflicts.length === 0,
-      partition: final.assignment,
-      conflicts: final.conflicts,
-    });
-    return {
-      balanced: final.conflicts.length === 0,
-      iterations: iter,
-      remainingConflicts: final.conflicts.length,
-    };
-  };
-
-
-  // replace your handleRunBalance with this
-  const handleRunBalance = () => {
-    const res = analyzeBalance();
-    if (!res) {
-      alert("No graph present.");
+      const maxB = Math.max(...Object.values(betweenness));
+      const results = [];
+      nodes.forEach(n => {
+        const b = betweenness[n.id()];
+        results.push({ node: n.id(), betweenness: b.toFixed(3) });
+        const size = 30 + (b / maxB) * 70;
+        n.style({ "background-color": "#f97316", width: size, height: size, label: `${n.id()} (${b.toFixed(3)})` });
+      });
+      setResults({ algorithm: "Betweenness Centrality", results }, {});
       return;
     }
 
-    // Prepare the result object for AnalysisResults
-    const resultObj = {
-      algorithm: "Structural Balance",
-      balanced: res.balanced,
-      conflicts: res.conflicts,
-      conflictCount: res.conflictCount,
-      graphStatus: [
-        "✓ Connected graph",
-        "✓ No self-loops detected",
-        res.conflictCount > 0
-          ? `⚠ ${res.conflictCount} conflict(s) detected`
-          : "✓ No conflicts",
-      ],
-    };
-
-    setResults(resultObj); // Send to AnalysisResults
-
-    // show explicit user-facing message
-    if (res.balanced) {
-      alert("Graph is balanced — no conflicts detected.");
-    } else {
-      alert(`Graph is UNBALANCED — ${res.conflictCount} conflict(s) detected. Check highlighted edges.`);
-    }
-  };
-
-
-  const refreshEdgeStyles = () => {
-    const cy = cyRef.current;
-    if (!cy) return;
-    cy.edges().forEach(edge => {
-      const sRaw = edge.data("sign");
-      let sign = 1;
-      if (sRaw !== undefined && sRaw !== null && sRaw !== "") {
-        const s = String(sRaw).replace(/[−‒–—]/g, "-").trim();
-        const n = Number(s);
-        sign = Number.isNaN(n) ? (edge.data("weight") < 0 ? -1 : 1) : (n < 0 ? -1 : 1);
-      } else if (edge.data("weight") !== undefined) {
-        const w = Number(edge.data("weight"));
-        sign = Number.isNaN(w) ? 1 : (w < 0 ? -1 : 1);
-      }
-
-      const isPos = sign > 0;
-      // store normalized numeric sign back to data so all code sees the same format
-      edge.data("sign", isPos ? 1 : -1);
-
-      edge.style({
-        "line-color": isPos ? "#10b981" : "#ef4444",
-        "target-arrow-color": isPos ? "#10b981" : "#ef4444",
-        "label": isPos ? "1" : "-1",
-        "font-size": "12px",
-        "text-background-opacity": 1,
-        "text-background-color": "#ffffff",
-      });
-    });
-    try { cy.style().update(); } catch (e) { }
-  };
-
-
-
-  const handleMakeBalanced = () => {
-    const res = makeBalancedGreedy(200);
-    if (!res) {
-      alert("No graph present or operation failed.");
+    if (selectedAlgo === "er") {
+      const n = parseInt(prompt("Number of nodes (e.g. 10):")) || 10;
+      const p = parseFloat(prompt("Probability (0-1, e.g. 0.3):")) || 0.3;
+      const response = erModelSteps(cy, n, p);
+      runAnimation(response.steps, response, Math.min(delay, 300), {});
+      cy.layout({ name: "cose" }).run();
       return;
     }
 
-    const conflicts = res.remainingConflicts ?? (balanceResult?.conflicts?.length ?? 0);
-
-    const resultObj = {
-      algorithm: "Structural Balance (Greedy)",
-      balanced: res.balanced ?? (conflicts === 0),
-      conflicts: balanceResult?.conflicts || [],
-      remainingConflicts: conflicts,
-      graphStatus: [
-        "✓ Connected graph",
-        "✓ No self-loops detected",
-        conflicts
-          ? `⚠ ${conflicts} conflicts remaining`
-          : "✓ No conflicts",
-      ],
-    };
-    setResults(resultObj);
-
-    if (res.balanced) {
-      alert(`Graph balanced after ${res.iterations} iteration(s).`);
-    } else {
-      alert(
-        `Stopped after ${res.iterations} iteration(s). Remaining conflicts: ${conflicts || 0}`
-      );
+    if (selectedAlgo === "ba") {
+      const n = parseInt(prompt("Total nodes (e.g. 15):")) || 15;
+      const m = parseInt(prompt("Edges per new node (e.g. 2):")) || 2;
+      const response = baModelSteps(cy, n, m);
+      runAnimation(response.steps, response.result, Math.min(delay, 300), {});
+      cy.layout({ name: "cose" }).run();
+      return;
     }
+
+    if (selectedAlgo === "ws") {
+      const n = parseInt(prompt("Number of nodes (e.g. 20):")) || 20;
+      const k = parseInt(prompt("Each node connected to k neighbors (e.g. 4):")) || 4;
+      const p = parseFloat(prompt("Rewiring probability (0-1, e.g. 0.1):")) || 0.1;
+      const response = wsModelSteps(cy, n, k, p);
+      runAnimation(response.steps, response, Math.min(delay, 300), {});
+      return;
+    }
+
+    if (selectedAlgo === "community") {
+      const response = labelPropagationSteps(cy, 10);
+      runAnimation(response.steps, response, delay, {});
+      return;
+    }
+
+    if (selectedAlgo === "information-cascade") {
+      const probability = parseFloat(prompt("Propagation probability (0-1, e.g. 0.4):")) || 0.4;
+      const seedInput = prompt("Seed node IDs (comma-separated, e.g. N0,N1):") || "N0";
+      const seedNodes = seedInput.split(",").map(s => s.trim());
+      const response = independentCascadeSteps(cy, seedNodes, probability);
+      runAnimation(response.steps, response.result, delay, {});
+      return;
+    }
+  }, [cyRef, selectedAlgo, speedIdx, resetVisuals, runAnimation]);
+
+  // ─── Descriptions ────────────────────────────────────────────────────────────
+  const DESCRIPTIONS = {
+    "balance-check": "BFS-based check — partitions nodes into groups A/B and highlights conflicting edges in red.",
+    "balance-greedy": "Iteratively flips conflicting edges to reduce imbalance. Flipped edges shown in amber.",
+    dijkstra: "Find the shortest path between two nodes (supports weighted edges).",
+    degree: "Node size encodes its degree — larger = more connections.",
+    closeness: "Nodes closer to all others are larger and greener.",
+    betweenness: "Nodes on many shortest paths grow larger and turn orange.",
+    pagerank: "Iterative damping — nodes accumulate rank from their incoming neighbours.",
+    hits: "Authority (warm) and Hub (cool border) scores update each iteration.",
+    community: "Label propagation — each node adopts the most common label among its neighbours.",
+    er: "Random graph: each possible edge added with probability p.",
+    ba: "Scale-free graph: new nodes prefer high-degree targets.",
+    ws: "Small-world graph: ring lattice with random rewires.",
+    "information-cascade": "IC model: infected nodes try to activate neighbours with given probability.",
   };
 
-
-
-
-
-
-
-
-
-
-  //Degree Centrality
-  const runDegreeCentrality = () => {
-    if (!cyRef.current) return null;
-    const cy = cyRef.current;
-
-    const nodes = cy.nodes();
-    const results = [];
-
-    resetVisuals();
-
-    nodes.forEach(n => {
-      const deg = n.degree();
-      results.push({ node: n.id(), degree: deg });
-
-      // highlight nodes by degree size
-      n.style({
-        "background-color": "#3b82f6",
-        "width": 30 + deg * 5,
-        "height": 30 + deg * 5,
-        "label": `${n.id()} (${deg})`
-      });
-    });
-
-    return {
-      algorithm: "Degree Centrality",
-      results
-    };
+  const LABELS = {
+    "balance-check": "Check Balance",
+    "balance-greedy": "Make Balanced (Greedy)",
+    dijkstra: "Dijkstra",
+    degree: "Degree Centrality",
+    closeness: "Closeness Centrality",
+    betweenness: "Betweenness Centrality",
+    pagerank: "PageRank",
+    hits: "HITS",
+    community: "Label Propagation",
+    er: "Erdős–Rényi",
+    ba: "Barabási–Albert",
+    ws: "Watts–Strogatz",
+    "information-cascade": "Information Cascade",
   };
 
-
-  //Closeness Centrality
-  const runClosenessCentrality = () => {
-    if (!cyRef.current) return null;
-    const cy = cyRef.current;
-
-    const nodes = cy.nodes();
-    const closeness = {};
-
-    resetVisuals();
-
-    nodes.forEach(source => {
-      let totalDist = 0;
-
-      const dijkstra = cy.elements().dijkstra(source, e => parseFloat(e.data("weight") || 1));
-      nodes.forEach(target => {
-        if (source.id() !== target.id()) {
-          const dist = dijkstra.distanceTo(target);
-          if (dist !== Infinity) totalDist += dist;
-        }
-      });
-
-      closeness[source.id()] = totalDist > 0 ? (1 / totalDist) : 0;
-    });
-
-    const maxC = Math.max(...Object.values(closeness));
-    const results = [];
-
-    nodes.forEach(n => {
-      const c = closeness[n.id()];
-      results.push({ node: n.id(), closeness: c.toFixed(4) });
-
-      const size = 30 + (c / maxC) * 60;
-
-      n.style({
-        "background-color": "#10b981",
-        width: size,
-        height: size,
-        "label": `${n.id()} (${c.toFixed(3)})`
-      });
-    });
-
-    return {
-      algorithm: "Closeness Centrality",
-      results
-    };
-  };
-
-
-
-  //Betweenness Centrality
-
-  const runBetweennessCentrality = () => {
-    if (!cyRef.current) return null;
-    const cy = cyRef.current;
-
-    const nodes = cy.nodes();
-    const edges = cy.edges();
-
-    resetVisuals();
-
-    const betweenness = {};
-    nodes.forEach(n => betweenness[n.id()] = 0);
-
-    nodes.forEach(s => {
-      const stack = [];
-      const pred = {};
-      const dist = {};
-      const sigma = {};
-
-      nodes.forEach(v => {
-        pred[v.id()] = [];
-        dist[v.id()] = Infinity;
-        sigma[v.id()] = 0;
-      });
-
-      dist[s.id()] = 0;
-      sigma[s.id()] = 1;
-      const queue = [s];
-
-      while (queue.length > 0) {
-        const v = queue.shift();
-        stack.push(v);
-
-        v.neighborhood("node").forEach(w => {
-          if (dist[w.id()] === Infinity) {
-            dist[w.id()] = dist[v.id()] + 1;
-            queue.push(w);
-          }
-          if (dist[w.id()] === dist[v.id()] + 1) {
-            sigma[w.id()] += sigma[v.id()];
-            pred[w.id()].push(v);
-          }
-        });
-      }
-
-      const delta = {};
-      nodes.forEach(v => delta[v.id()] = 0);
-
-      while (stack.length > 0) {
-        const w = stack.pop();
-        pred[w.id()].forEach(v => {
-          delta[v.id()] += (sigma[v.id()] / sigma[w.id()]) * (1 + delta[w.id()]);
-        });
-        if (w.id() !== s.id()) {
-          betweenness[w.id()] += delta[w.id()];
-        }
-      }
-    });
-
-    const maxB = Math.max(...Object.values(betweenness));
-    const results = [];
-
-    nodes.forEach(n => {
-      const b = betweenness[n.id()];
-      results.push({ node: n.id(), betweenness: b.toFixed(3) });
-
-      const size = 30 + (b / maxB) * 70;
-
-      n.style({
-        "background-color": "#f97316",
-        width: size,
-        height: size,
-        "label": `${n.id()} (${b.toFixed(3)})`
-      });
-    });
-
-    return {
-      algorithm: "Betweenness Centrality",
-      results
-    };
-  };
-
-
-
-
-
-
-
+  // ─── Render ──────────────────────────────────────────────────────────────────
   return (
     <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-      <div className="flex border-b border-gray-200">
-        <button
-          onClick={() => setActiveTab("algorithms")}
-          className={`flex-1 py-3 px-4 font-medium ${activeTab === "algorithms"
-            ? "text-gray-700 border-b-2 border-yellow-400"
-            : "text-gray-500"
-            }`}
-        >
-          Algorithms
-        </button>
-        <button
-          onClick={() => setActiveTab("properties")}
-          className={`flex-1 py-3 px-4 font-medium ${activeTab === "properties"
-            ? "text-gray-700 border-b-2 border-yellow-400"
-            : "text-gray-500"
-            }`}
-        >
-          Properties
-        </button>
 
+      {/* ── Tab Header ── */}
+      <div style={{ display:"flex", borderBottom:"1px solid #f3f4f6" }}>
+        {["algorithms", "properties"].map(tab => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            style={{
+              flex: 1,
+              padding: "12px 16px",
+              fontSize: "13px",
+              fontWeight: 600,
+              textTransform: "capitalize",
+              cursor: "pointer",
+              transition: "all 0.15s",
+              background: activeTab === tab ? "#fefce8" : "transparent",
+              color: activeTab === tab ? "#1f2937" : "#9ca3af",
+              borderBottom: activeTab === tab ? "2px solid #facc15" : "2px solid transparent",
+              border: "none",
+              borderBottomWidth: "2px",
+              borderBottomStyle: "solid",
+              borderBottomColor: activeTab === tab ? "#facc15" : "transparent",
+            }}
+          >
+            {tab}
+          </button>
+        ))}
       </div>
 
-      <div className="p-4 space-y-2">
+      <div style={{ padding: "16px", display: "flex", flexDirection: "column", gap: "12px" }}>
+
+        {/* ══ ALGORITHMS TAB ══ */}
         {activeTab === "algorithms" && (
           <>
-            {/* Algorithm Dropdown */}
-            <div className="bg-white rounded-xl shadow p-5 mb-4">
-              <label className="text-sm text-gray-600">Select Algorithm</label>
-
+            {/* Algorithm selector */}
+            <div>
+              <label style={{ fontSize:"11px", fontWeight:700, color:"#9ca3af", textTransform:"uppercase", letterSpacing:"0.08em" }}>
+                Select Algorithm
+              </label>
               <select
-                className="mt-2 w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-700 focus:ring-2 focus:ring-yellow-400"
+                style={{
+                  marginTop: "8px",
+                  width: "100%",
+                  border: "1px solid #e5e7eb",
+                  borderRadius: "12px",
+                  padding: "10px 12px",
+                  color: "#374151",
+                  fontSize: "13px",
+                  background: "#f9fafb",
+                  outline: "none",
+                  cursor: "pointer",
+                }}
                 value={selectedAlgo}
-                onChange={(e) => setSelectedAlgo(e.target.value)}
+                onChange={e => { stopAnimation(); resetVisuals(); setSelectedAlgo(e.target.value); }}
               >
-                <option value="">-- Choose an Algorithm --</option>
-
-                <optgroup label="Structural Balance">
+                <option value="">— Choose an Algorithm —</option>
+                <optgroup label="⚖️  Structural Balance">
                   <option value="balance-check">Check Balance</option>
                   <option value="balance-greedy">Make Balanced (Greedy)</option>
                 </optgroup>
-
-                <optgroup label="Shortest Path">
+                <optgroup label="🗺️  Shortest Path">
                   <option value="dijkstra">Dijkstra</option>
                 </optgroup>
-
-                <optgroup label="Centrality Measures">
+                <optgroup label="📐  Centrality">
                   <option value="degree">Degree Centrality</option>
                   <option value="closeness">Closeness Centrality</option>
                   <option value="betweenness">Betweenness Centrality</option>
                 </optgroup>
-
-                <optgroup label="Ranking">
+                <optgroup label="📊  Ranking">
                   <option value="pagerank">PageRank</option>
                   <option value="hits">HITS</option>
                 </optgroup>
-
-                <optgroup label="Graph Generators">
-                  <option value="er">Erdos-Renyi (ER)</option>
-                  <option value="ba">Barabasi-Albert (BA)</option>
-                  <option value="ws">Watts-Strogatz (WS)</option>
+                <optgroup label="📈  Graph Generators">
+                  <option value="er">Erdős–Rényi (ER)</option>
+                  <option value="ba">Barabási–Albert (BA)</option>
+                  <option value="ws">Watts–Strogatz (WS)</option>
                 </optgroup>
-
-                <optgroup label="Community Detection">
+                <optgroup label="🏘  Community">
                   <option value="community">Label Propagation</option>
                 </optgroup>
-
-                <optgroup label="Diffusion Models">
-                  <option value="information-cascade">
-                    Information Cascade
-                  </option>
+                <optgroup label="🌊  Diffusion">
+                  <option value="information-cascade">Information Cascade</option>
                 </optgroup>
-
               </select>
             </div>
 
-            {/* Dynamic Algorithm Card */}
+            {/* Algorithm card */}
             {selectedAlgo && (
-              <div className="bg-white rounded-xl shadow-lg p-6 space-y-4">
-                <h2 className="text-xl font-semibold text-gray-800 text-center">
-                  {selectedAlgo.replace("-", " ").toUpperCase()}
-                </h2>
+              <div style={{ borderRadius:"16px", border:"1px solid #f3f4f6", boxShadow:"0 1px 4px rgba(0,0,0,0.06)", overflow:"hidden" }}>
 
-                {/* Description */}
-                <p className="text-sm text-gray-600">
-                  {selectedAlgo === "balance-check" && "Check whether the signed graph is structurally balanced."}
-                  {selectedAlgo === "balance-greedy" && "Automatically flip edges to reduce conflicts and balance the graph."}
-                  {selectedAlgo === "dijkstra" && "Find the shortest path between two nodes (supports weighted edges)."}
-                  {selectedAlgo === "degree" && "Compute degree centrality for each node."}
-                  {selectedAlgo === "closeness" && "Measure closeness centrality of all nodes based on shortest paths."}
-                  {selectedAlgo === "betweenness" && "Compute betweenness centrality using Brandes’ algorithm."}
-                  {selectedAlgo === "pagerank" && "Compute PageRank values using iterative damping algorithm."}
-                  {selectedAlgo === "community" && "Detect communities using label propagation."}
-                  {selectedAlgo === "er" && "Generate a random graph using the Erdos-Renyi model."}
-                  {selectedAlgo === "ba" && "Generate a scale-free graph using the Barabasi-Albert model."}
-                  {selectedAlgo === "ws" && "Generate a small-world graph using the Watts-Strogatz model."}
-                  {selectedAlgo === "information-cascade" && "Simulate an information cascade using the Independent Cascade model."}
-                </p>
+                {/* Card header – gold gradient */}
+                <div style={{ background:"linear-gradient(135deg,#f59e0b,#fbbf24)", padding:"12px 16px" }}>
+                  <p style={{ fontSize:"10px", fontWeight:700, color:"#78350f", textTransform:"uppercase", letterSpacing:"0.1em", opacity:0.8, margin:0 }}>
+                    Algorithm
+                  </p>
+                  <h2 style={{ fontSize:"15px", fontWeight:700, color:"#fff", margin:"2px 0 0", lineHeight:1.3 }}>
+                    {LABELS[selectedAlgo] ?? selectedAlgo}
+                  </h2>
+                </div>
 
-                {/* BUTTON GROUP */}
-                <div className="flex gap-4 mt-4 justify-center">
+                <div style={{ padding:"16px", display:"flex", flexDirection:"column", gap:"14px" }}>
 
-                  {/* Run Algorithm Button */}
-                  <button
-                    onClick={async () => {
-                      if (selectedAlgo === "balance-check") handleRunBalance();
-                      if (selectedAlgo === "balance-greedy") handleMakeBalanced();
-                      if (selectedAlgo === "dijkstra") {
-                        const s = prompt("Source");
-                        const t = prompt("Target");
-                        const steps = dijkstraSteps(cyRef.current, s, t);
-                        playSteps(cyRef.current, steps, 700);
-                        setResults(steps.result);
-                      }
-                      if (selectedAlgo === "degree") setResults(runDegreeCentrality());
-                      if (selectedAlgo === "closeness") setResults(runClosenessCentrality());
-                      if (selectedAlgo === "betweenness") setResults(runBetweennessCentrality());
-                      if (selectedAlgo === "pagerank") {
-                        const d = prompt("Enter damping factor (default 0.85):") || 0.85;
-                        const response = pageRankSteps(cyRef.current);
-                        playSteps(cyRef.current, response.steps, 700);
-                        setResults(response.result);
-                      }
-                      if (selectedAlgo === "hits") {
-                        const response = hitsSteps(cyRef.current, 25)
-                        playSteps(cyRef.current, response.steps, 700);
-                        setResults(response.result);
-                      }
-                      if (selectedAlgo === "er") {
-                        const n = parseInt(prompt("Number of nodes (e.g. 10):")) || 10;
-                        const p = parseFloat(prompt("Probability (0-1, e.g. 0.3):")) || 0.3;
+                  {/* Description */}
+                  <p style={{ fontSize:"12px", color:"#6b7280", lineHeight:1.6, margin:0 }}>
+                    {DESCRIPTIONS[selectedAlgo]}
+                  </p>
 
-                        const response = erModelSteps(cyRef.current, n, p);
-                        await playSteps(cyRef.current, response.steps, 300);
+                  {/* Speed selector */}
+                  <div>
+                    <p style={{ fontSize:"10px", fontWeight:700, color:"#9ca3af", textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:"8px" }}>
+                      Animation Speed
+                    </p>
+                    <div style={{ display:"flex", gap:"6px" }}>
+                      {SPEED_OPTIONS.map((opt, idx) => (
+                        <button
+                          key={opt.label}
+                          onClick={() => setSpeedIdx(idx)}
+                          disabled={isRunning}
+                          style={{
+                            flex: 1,
+                            padding: "7px 0",
+                            borderRadius: "10px",
+                            fontSize: "12px",
+                            fontWeight: 600,
+                            cursor: isRunning ? "not-allowed" : "pointer",
+                            opacity: isRunning ? 0.5 : 1,
+                            border: "none",
+                            transition: "all 0.15s",
+                            background: speedIdx === idx ? "#facc15" : "#f3f4f6",
+                            color: speedIdx === idx ? "#fff" : "#6b7280",
+                            boxShadow: speedIdx === idx ? "0 1px 4px rgba(250,204,21,0.4)" : "none",
+                          }}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
 
-                        cyRef.current.layout({ name: "cose" }).run();  // auto arrange
-                        setResults(response);
-                        return;
-                      }
-                      if (selectedAlgo === "ba") {
+                  
 
-                        const n = parseInt(prompt("Total nodes (e.g. 15):")) || 15;
-                        const m = parseInt(prompt("Edges per new node (e.g. 2):")) || 2;
+                  {/* ── Control Buttons ── */}
+                  <div style={{ display:"flex", flexDirection:"column", gap:"8px" }}>
 
-                        const response = baModelSteps(cyRef.current, n, m);
+                    {/* Primary row */}
+                    <div style={{ display:"flex", gap:"8px" }}>
 
-                        await playSteps(cyRef.current, response.steps, 300);
-                         cyRef.current.layout({ name: "cose" }).run(); 
+                      {/* RUN — only when not running */}
+                      {!isRunning && (
+                        <button
+                          onClick={handleRun}
+                          style={{
+                            flex: 1,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: "8px",
+                            padding: "11px 0",
+                            borderRadius: "12px",
+                            fontSize: "13px",
+                            fontWeight: 700,
+                            cursor: "pointer",
+                            border: "none",
+                            background: "#facc15",
+                            color: "#fff",
+                            boxShadow: "0 2px 8px rgba(250,204,21,0.45)",
+                            transition: "all 0.15s",
+                          }}
+                          onMouseEnter={e => e.currentTarget.style.background="#f59e0b"}
+                          onMouseLeave={e => e.currentTarget.style.background="#facc15"}
+                        >
+                          <svg width="16" height="16" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M6.3 2.84A1.5 1.5 0 004 4.11v11.78a1.5 1.5 0 002.3 1.27l9.34-5.89a1.5 1.5 0 000-2.54L6.3 2.84z"/>
+                          </svg>
+                          Run
+                        </button>
+                      )}
 
-                        setResults(response.result);
-                        return;
-                      }
+                      {/* PAUSE — running and not paused */}
+                      {isRunning && !isPaused && (
+                        <button
+                          onClick={handlePause}
+                          style={{
+                            flex: 1,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: "8px",
+                            padding: "11px 0",
+                            borderRadius: "12px",
+                            fontSize: "13px",
+                            fontWeight: 700,
+                            cursor: "pointer",
+                            border: "none",
+                            background: "#6366f1",
+                            color: "#fff",
+                            boxShadow: "0 2px 8px rgba(99,102,241,0.4)",
+                            transition: "all 0.15s",
+                          }}
+                          onMouseEnter={e => e.currentTarget.style.background="#4f46e5"}
+                          onMouseLeave={e => e.currentTarget.style.background="#6366f1"}
+                        >
+                          <svg width="16" height="16" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M6 4a1 1 0 011 1v10a1 1 0 11-2 0V5a1 1 0 011-1zm7 0a1 1 0 011 1v10a1 1 0 11-2 0V5a1 1 0 011-1z" clipRule="evenodd"/>
+                          </svg>
+                          Pause
+                        </button>
+                      )}
 
-                      if (selectedAlgo === "community") {
-                        const response = labelPropagationSteps(cyRef.current, 10);
-                        await playSteps(cyRef.current, response.steps, 500);
-                        setResults(response);
-                      }
+                      {/* RESUME — running and paused */}
+                      {isRunning && isPaused && (
+                        <button
+                          onClick={handleResume}
+                          style={{
+                            flex: 1,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: "8px",
+                            padding: "11px 0",
+                            borderRadius: "12px",
+                            fontSize: "13px",
+                            fontWeight: 700,
+                            cursor: "pointer",
+                            border: "none",
+                            background: "#22c55e",
+                            color: "#fff",
+                            boxShadow: "0 2px 8px rgba(34,197,94,0.4)",
+                            transition: "all 0.15s",
+                          }}
+                          onMouseEnter={e => e.currentTarget.style.background="#16a34a"}
+                          onMouseLeave={e => e.currentTarget.style.background="#22c55e"}
+                        >
+                          <svg width="16" height="16" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M6.3 2.84A1.5 1.5 0 004 4.11v11.78a1.5 1.5 0 002.3 1.27l9.34-5.89a1.5 1.5 0 000-2.54L6.3 2.84z"/>
+                          </svg>
+                          Resume
+                        </button>
+                      )}
 
-                      if (selectedAlgo === "ws") {
-                        const n = parseInt(prompt("Number of nodes (e.g. 20):")) || 20;
-                        const k = parseInt(prompt("Each node connected to k neighbors (e.g. 4):")) || 4;
-                        const p = parseFloat(prompt("Rewiring probability (0-1, e.g. 0.1):")) || 0.1;
-                        const response = wsModelSteps(cyRef.current, n, k, p);
-                        await playSteps(cyRef.current, response.steps, 300);
+                      {/* STOP — always visible while running */}
+                      {isRunning && (
+                        <button
+                          onClick={stopAnimation}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: "6px",
+                            padding: "11px 16px",
+                            borderRadius: "12px",
+                            fontSize: "13px",
+                            fontWeight: 700,
+                            cursor: "pointer",
+                            border: "none",
+                            background: "#ef4444",
+                            color: "#fff",
+                            boxShadow: "0 2px 8px rgba(239,68,68,0.4)",
+                            transition: "all 0.15s",
+                          }}
+                          onMouseEnter={e => e.currentTarget.style.background="#dc2626"}
+                          onMouseLeave={e => e.currentTarget.style.background="#ef4444"}
+                        >
+                          <svg width="16" height="16" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M5 5h10v10H5V5z" clipRule="evenodd"/>
+                          </svg>
+                          Stop
+                        </button>
+                      )}
+                    </div>
 
-                        //cyRef.current.layout({ name: "cose" }).run();
-                        setResults(response);
-                        return;
-                      }
+                    {/* Secondary row — Reset (only when not running) */}
+                    {!isRunning && (
+                      <button
+                        onClick={resetVisuals}
+                        style={{
+                          width: "100%",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: "6px",
+                          padding: "8px 0",
+                          borderRadius: "10px",
+                          fontSize: "12px",
+                          fontWeight: 600,
+                          cursor: "pointer",
+                          border: "1px solid #e5e7eb",
+                          background: "#f9fafb",
+                          color: "#6b7280",
+                          transition: "all 0.15s",
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.background="#f3f4f6"; e.currentTarget.style.color="#374151"; }}
+                        onMouseLeave={e => { e.currentTarget.style.background="#f9fafb"; e.currentTarget.style.color="#6b7280"; }}
+                      >
+                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                        </svg>
+                        Reset 
+                      </button>
+                    )}
+                  </div>
 
-                      if (selectedAlgo === "information-cascade") {
-
-                        const probability =
-                          parseFloat(prompt("Propagation probability (0-1, e.g. 0.4):")) || 0.4;
-
-                        const seedInput =
-                          prompt("Enter seed node IDs separated by comma (e.g. N0,N1):") || "N0";
-
-                        const seedNodes = seedInput.split(",").map(s => s.trim());
-
-                        const response = independentCascadeSteps(
-                          cyRef.current,
-                          seedNodes,
-                          probability
-                        );
-
-                        await playSteps(cyRef.current, response.steps, 700);
-
-                        setResults(response.result);
-                        return;
-                      }
-
-                    }}
-                    className="bg-yellow-400 hover:bg-yellow-500 text-white px-6 py-2 rounded-lg shadow-md"
-                  >
-                    Run
-                  </button>
-
-                  {/* Clear Button */}
-                  <button
-                    onClick={() => resetVisuals()}
-                    className="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-lg shadow-md"
-                  >
-                    Clear
-                  </button>
                 </div>
               </div>
             )}
           </>
-
         )}
 
+        {/* ══ PROPERTIES TAB ══ */}
         {activeTab === "properties" && (
           properties ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="p-3 bg-gray-50 rounded-lg shadow-sm hover:bg-yellow-50 transition">
-                <p className="text-xs text-gray-500">Edges</p>
-                <p className="text-lg font-semibold text-gray-800">{properties.size}</p>
-              </div>
-
-              <div className="p-3 bg-gray-50 rounded-lg shadow-sm hover:bg-yellow-50 transition">
-                <p className="text-xs text-gray-500">Density</p>
-                <p className="text-lg font-semibold text-gray-800">{properties.density}</p>
-              </div>
-
-              <div className="p-3 bg-gray-50 rounded-lg shadow-sm hover:bg-yellow-50 transition sm:col-span-2">
-                <p className="text-xs text-gray-500">Degree Info</p>
-                <p className="text-sm text-gray-700">
-                  min: <b>{properties.minDeg}</b>, max: <b>{properties.maxDeg}</b>, avg:{" "}
-                  <b>{properties.avgDeg}</b>
-                </p>
-              </div>
-
-              <div className="p-3 bg-gray-50 rounded-lg shadow-sm hover:bg-yellow-50 transition">
-                <p className="text-xs text-gray-500">Connectivity</p>
-                <p className="text-sm text-gray-700">
-                  {properties.connectedComponents} components
-                  <br />
-                  {properties.isolatedNodes} isolated nodes
-                </p>
-              </div>
-
-              <div className="p-3 bg-gray-50 rounded-lg shadow-sm hover:bg-yellow-50 transition">
-                <p className="text-xs text-gray-500">Cycles Present</p>
-                <p
-                  className={`text-lg font-semibold ${properties.hasCycle === "Yes" ? "text-red-600" : "text-green-600"
-                    }`}
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"8px" }}>
+              {[
+                { label: "Edges",        value: properties.size,               wide: false },
+                { label: "Density",      value: properties.density,            wide: false },
+                { label: "Avg Degree",   value: properties.avgDeg,             wide: false },
+                { label: "Degree Range", value: `${properties.minDeg} – ${properties.maxDeg}`, wide: false },
+                { label: "Components",   value: properties.connectedComponents, wide: false },
+                { label: "Isolated",     value: properties.isolatedNodes,       wide: false },
+                { label: "Clustering",   value: properties.clusteringCoeff,     wide: true  },
+                { label: "Has Cycles",   value: properties.hasCycle,            wide: false, colored: true },
+              ].map(item => (
+                <div
+                  key={item.label}
+                  style={{
+                    padding: "10px 12px",
+                    background: "#f9fafb",
+                    borderRadius: "10px",
+                    border: "1px solid #f3f4f6",
+                    gridColumn: item.wide ? "span 2" : "span 1",
+                  }}
                 >
-                  {properties.hasCycle}
-                </p>
-              </div>
-
-              <div className="p-3 bg-gray-50 rounded-lg shadow-sm hover:bg-yellow-50 transition sm:col-span-2">
-                <p className="text-xs text-gray-500">Clustering Coefficient</p>
-                <p className="text-lg font-semibold text-gray-800">
-                  {properties.clusteringCoeff}
-                </p>
-              </div>
+                  <p style={{ fontSize:"11px", color:"#9ca3af", fontWeight:500, margin:0 }}>{item.label}</p>
+                  <p style={{
+                    fontSize: "14px",
+                    fontWeight: 700,
+                    margin: "2px 0 0",
+                    color: item.colored
+                      ? (properties.hasCycle === "Yes" ? "#ef4444" : "#22c55e")
+                      : "#1f2937",
+                  }}>
+                    {item.value}
+                  </p>
+                </div>
+              ))}
             </div>
           ) : (
-            <p className="text-gray-500">Load a graph to see properties</p>
+            <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"40px 0", color:"#9ca3af" }}>
+              <svg width="40" height="40" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ opacity:0.3, marginBottom:"8px" }}>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+              </svg>
+              <p style={{ fontSize:"13px", margin:0 }}>Load a graph to see properties</p>
+            </div>
           )
         )}
 
-
       </div>
+
+      {/* Pulse animation for the status dot */}
+      <style>{`
+        @keyframes pulse-dot {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50%       { opacity: 0.5; transform: scale(1.3); }
+        }
+      `}</style>
     </div>
   );
 };
