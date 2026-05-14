@@ -1,8 +1,6 @@
 import { StepTypes } from '../animation/StepTypes';
 
-/**
- * readEdgeSign – same helper used in Algorithm.jsx
- */
+
 function readEdgeSign(edge) {
   const raw = edge.data('sign');
   if (raw !== undefined && raw !== null && raw !== '') {
@@ -19,17 +17,8 @@ function readEdgeSign(edge) {
   return 1;
 }
 
-/**
- * balanceCheckSteps(cy)
- * ---------------------
- * BFS-based structural balance analysis that emits step-by-step animation.
- * Returns { steps, result }.
- *
- * Visualisation logic:
- *  1. Nodes are revealed one-by-one via BFS with partition A (blue) / B (orange)
- *  2. Each edge is highlighted yellow as it is "visited"
- *  3. After assignment, edges turn green (consistent) or red+pulse (conflict)
- */
+
+
 export function balanceCheckSteps(cy) {
   const steps = [];
   const nodes = cy.nodes();

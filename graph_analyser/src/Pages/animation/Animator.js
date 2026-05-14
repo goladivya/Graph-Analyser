@@ -1,18 +1,4 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// Animator.js  –  step-based animation with reliable pause / resume / cancel
-// ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * AnimatorController
- *
- * Returned by playSteps().  Gives the caller full control over the animation.
- *
- *   ctrl.pause()    – freeze after the current step finishes
- *   ctrl.resume()   – continue from where it paused
- *   ctrl.cancel()   – stop immediately, leave graph as-is
- *   ctrl.done       – Promise that resolves when finished OR cancelled
- *   ctrl.isPaused   – boolean getter
- */
 export class AnimatorController {
   constructor() {
     this._paused    = false;

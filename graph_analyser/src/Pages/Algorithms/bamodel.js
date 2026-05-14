@@ -1,32 +1,6 @@
 import { StepTypes } from "../animation/StepTypes";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Barabási–Albert Preferential Attachment Model
-// ─────────────────────────────────────────────────────────────────────────────
-//
-// Faithful to the original 1999 Barabási & Albert paper:
-//
-//   1. Initialise with m0 ≥ m nodes connected as a star (or small clique).
-//   2. At each step add one new node; connect it to exactly m existing nodes.
-//   3. Preferential attachment: sample m neighbours proportional to degree.
-//      Canonical method — sample a random edge, pick one endpoint at random.
-//      This gives P(i) = k_i / (2|E|) exactly, with no bias correction needed.
-//   4. Repeat until n total nodes exist.
-//
-// Theoretical properties (large-n limit):
-//   P(k) ~ k^{-γ},  γ = 3
-//   <k>  = 2m
-//   Max hub degree ~ sqrt(n) * m
-//
-// References:
-//   Barabási & Albert, Science 286 (1999) 509-512
-//   Albert & Barabási, Rev. Mod. Phys. 74 (2002) 47-97
-// ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * Linear-time power-law exponent estimate using Hill estimator (MLE).
- * Estimates γ for P(k) ~ k^{-γ} from degree sequence with k ≥ kMin.
- */
 function hillEstimator(degrees, kMin = 1) {
   const tail = degrees.filter(k => k >= kMin);
   if (tail.length < 2) return null;
@@ -34,11 +8,7 @@ function hillEstimator(degrees, kMin = 1) {
   return 1 + tail.length / logSum;
 }
 
-/**
- * Kolmogorov–Smirnov–style R² check: how well does a power-law fit the
- * empirical cumulative degree distribution?
- * Returns a score in [0,1] (1 = perfect fit).
- */
+
 function powerLawR2(degrees, gamma) {
   if (gamma == null || !isFinite(gamma)) return null;
   const sorted = [...degrees].sort((a, b) => a - b);
@@ -58,7 +28,7 @@ function powerLawR2(degrees, gamma) {
   return ssTot > 0 ? Math.max(0, +(1 - ssRes / ssTot).toFixed(3)) : null;
 }
 
-// ─── Main export ──────────────────────────────────────────────────────────────
+
 
 /**
  * baModelSteps(cy, n, m, m0)
@@ -71,7 +41,7 @@ function powerLawR2(degrees, gamma) {
 export function baModelSteps(cy, n = 20, m = 2, m0 = null) {
   const steps = [];
 
-  // ── Parameter validation ────────────────────────────────────────────────
+  
   m  = Math.max(1, Math.floor(m));
   m0 = m0 != null ? Math.max(m, Math.floor(m0)) : Math.max(m + 1, 3);
 
@@ -80,7 +50,6 @@ export function baModelSteps(cy, n = 20, m = 2, m0 = null) {
     return { steps: [], result: {} };
   }
 
-  // ── Internal graph state (mirrors what the animation builds) ────────────
   // degree[i] = current degree of node i
   const degree = new Array(n).fill(0);
 
@@ -105,9 +74,7 @@ export function baModelSteps(cy, n = 20, m = 2, m0 = null) {
     return true;
   }
 
-  // ── Helper: preferential-attachment sample
-  // Picks one node with P(i) ∝ degree(i) using edge-endpoint sampling.
-  // If edgeList is empty (seed phase), falls back to uniform sampling.
+ 
   function samplePA(excludeSet, currentN) {
     if (edgeList.length === 0) {
       // Uniform fallback during seed construction
