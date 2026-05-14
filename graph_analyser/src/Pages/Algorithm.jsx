@@ -421,31 +421,31 @@ const AlgorithmPanel = ({ cyRef, setResults }) => {
                 onChange={e => { stopAnimation(); resetVisuals(); setSelectedAlgo(e.target.value); }}
               >
                 <option value="">— Choose an Algorithm —</option>
-                <optgroup label="⚖️  Structural Balance">
+                <optgroup label=" Structural Balance">
                   <option value="balance-check">Check Balance</option>
                   <option value="balance-greedy">Make Balanced (Greedy)</option>
                 </optgroup>
-                <optgroup label="🗺️  Shortest Path">
+                <optgroup label=" Shortest Path">
                   <option value="dijkstra">Dijkstra</option>
                 </optgroup>
-                <optgroup label="📐  Centrality">
+                <optgroup label=" Centrality">
                   <option value="degree">Degree Centrality</option>
                   <option value="closeness">Closeness Centrality</option>
                   <option value="betweenness">Betweenness Centrality</option>
                 </optgroup>
-                <optgroup label="📊  Ranking">
+                <optgroup label=" Ranking">
                   <option value="pagerank">PageRank</option>
                   <option value="hits">HITS</option>
                 </optgroup>
-                <optgroup label="📈  Graph Generators">
+                <optgroup label=" Graph Generators">
                   <option value="er">Erdős–Rényi (ER)</option>
                   <option value="ba">Barabási–Albert (BA)</option>
                   <option value="ws">Watts–Strogatz (WS)</option>
                 </optgroup>
-                <optgroup label="🏘  Community">
+                <optgroup label="  Community">
                   <option value="community">Label Propagation</option>
                 </optgroup>
-                <optgroup label="🌊  Diffusion">
+                <optgroup label="  Diffusion">
                   <option value="information-cascade">Information Cascade</option>
                 </optgroup>
               </select>

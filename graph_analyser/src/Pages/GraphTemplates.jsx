@@ -9,7 +9,7 @@ const TEMPLATES = [
     id: "dijkstra-classic",
     label: "Dijkstra — Classic",
     algo: "Dijkstra",
-    icon: "🗺️",
+    
     description: "6-node weighted graph. Try source=A, target=F to find the shortest path.",
     hint: "Source: A  ·  Target: F",
     elements: [
@@ -34,7 +34,7 @@ const TEMPLATES = [
     id: "dijkstra-directed",
     label: "Dijkstra — Directed",
     algo: "Dijkstra",
-    icon: "🗺️",
+    
     description: "Directed weighted graph. Shows how direction blocks some shortest paths.",
     hint: "Source: S  ·  Target: T",
     elements: [
@@ -57,7 +57,7 @@ const TEMPLATES = [
     id: "balance-triangle-balanced",
     label: "Balance — Balanced Triangles",
     algo: "Structural Balance",
-    icon: "⚖️",
+   
     description: "All triangles are balanced: +++ and +−− only. Should detect perfect balance.",
     hint: "Run: Check Balance",
     elements: [
@@ -77,7 +77,7 @@ const TEMPLATES = [
     id: "balance-unbalanced",
     label: "Balance — Unbalanced Graph",
     algo: "Structural Balance",
-    icon: "⚖️",
+   
     description: "Contains a −−− triangle which is always unbalanced. Use greedy repair to fix it.",
     hint: "Run: Check Balance, then Make Balanced",
     elements: [
@@ -98,7 +98,7 @@ const TEMPLATES = [
     id: "pagerank-hub",
     label: "PageRank — Hub Network",
     algo: "PageRank",
-    icon: "📊",
+  
     description: "One central hub pointed to by all others. Watch it dominate the PageRank score.",
     hint: "Hub = node H. Expected top rank: H",
     elements: [
@@ -123,7 +123,7 @@ const TEMPLATES = [
     id: "pagerank-chain",
     label: "PageRank — Rank Sink",
     algo: "PageRank",
-    icon: "📊",
+   
     description: "A chain graph with a dangling sink node. Demonstrates how damping redistributes rank.",
     hint: "Notice how rank flows toward the sink",
     elements: [
@@ -145,7 +145,7 @@ const TEMPLATES = [
     id: "hits-classic",
     label: "HITS — Hub & Authority",
     algo: "HITS",
-    icon: "🎯",
+  
     description: "Hub nodes (H1, H2) point to authority nodes (A1, A2). Classic HITS structure.",
     hint: "Expected: A1 & A2 = top authorities, H1 & H2 = top hubs",
     elements: [
@@ -168,7 +168,7 @@ const TEMPLATES = [
     id: "centrality-bridge",
     label: "Centrality — Bridge Node",
     algo: "Centrality",
-    icon: "📐",
+  
     description: "Two clusters connected by a bridge node B. B should have highest betweenness; cluster centers highest closeness.",
     hint: "Run all three centrality measures and compare",
     elements: [
@@ -195,7 +195,7 @@ const TEMPLATES = [
     id: "community-three-clusters",
     label: "Community — 3 Clear Clusters",
     algo: "Community Detection",
-    icon: "🏘",
+   
     description: "Three tightly-connected groups with sparse inter-cluster edges. Label propagation should find all three.",
     hint: "Should detect 3 communities",
     elements: [
@@ -233,7 +233,7 @@ const TEMPLATES = [
     id: "ic-small-world",
     label: "IC — Small World Spread",
     algo: "Information Cascade",
-    icon: "🌊",
+  
     description: "Ring-lattice-style graph. Spread from S1. Observe how cascade depth correlates with path length.",
     hint: "Seed: S1  ·  Probability: 0.5",
     elements: [
@@ -259,7 +259,7 @@ const TEMPLATES = [
     id: "ic-influencer",
     label: "IC — Influencer Node",
     algo: "Information Cascade",
-    icon: "🌊",
+  
     description: "One high-degree influencer connected to many followers. Demonstrates viral spread.",
     hint: "Seed: INF  ·  Try probability 0.3 vs 0.7",
     elements: [
@@ -281,13 +281,13 @@ const TEMPLATES = [
 
 // ── Group templates by algorithm ──────────────────────────────────────────────
 const GROUPS = [
-  { key: "Dijkstra",             icon: "🗺️",  label: "Shortest Path"       },
-  { key: "Structural Balance",   icon: "⚖️",   label: "Structural Balance"  },
-  { key: "PageRank",             icon: "📊",  label: "PageRank"            },
-  { key: "HITS",                 icon: "🎯",  label: "HITS"                },
-  { key: "Centrality",           icon: "📐",  label: "Centrality"          },
-  { key: "Community Detection",  icon: "🏘",  label: "Community"           },
-  { key: "Information Cascade",  icon: "🌊",  label: "Info Cascade"        },
+  { key: "Dijkstra",               label: "Shortest Path"       },
+  { key: "Structural Balance",      label: "Structural Balance"  },
+  { key: "PageRank",               label: "PageRank"            },
+  { key: "HITS",                  label: "HITS"                },
+  { key: "Centrality",            label: "Centrality"          },
+  { key: "Community Detection",   label: "Community"           },
+  { key: "Information Cascade",    label: "Info Cascade"        },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -319,7 +319,7 @@ const GraphTemplates = ({ onLoad }) => {
         }}
       >
         <span style={{ display:"flex", alignItems:"center", gap:"8px" }}>
-          <span style={{ fontSize:"16px" }}>📚</span>
+          
           <span style={{ fontSize:"13px", fontWeight:700, color:"#1f2937" }}>Graph Templates</span>
           <span style={{ fontSize:"11px", fontWeight:500, color:"#9ca3af",
                           background:"#f3f4f6", padding:"2px 7px", borderRadius:"99px" }}>
@@ -374,7 +374,7 @@ const GraphTemplates = ({ onLoad }) => {
                       <p style={{ fontSize:"10px", color:"#f59e0b", fontWeight:600,
                                    background:"#fffbeb", padding:"3px 8px", borderRadius:"6px",
                                    display:"inline-block", margin:0 }}>
-                        💡 {tpl.hint}
+                         {tpl.hint}
                       </p>
                     )}
                   </div>
