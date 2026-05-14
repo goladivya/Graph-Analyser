@@ -1,8 +1,10 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import GraphCanvas from "./GraphCanvas";
 import GraphTools from "./GraphTools";
 import AlgorithmPanel from "./Algorithm";
 import AnalysisResults from "./Result";
+import GraphTemplates from "./GraphTemplates";
+//import HistoryLog from "./HistoryLog";
 import "../Pages/style.css";
 
 const MAX_HISTORY = 100;
@@ -23,7 +25,11 @@ const Component = () => {
   const [redoStack, setRedoStack] = useState([]);
   const [nodeCounter, setNodeCounter] = useState(1);
   const [results, setResults] = useState(null);
+  // const [historyLog, setHistoryLog] = useState([]);
   const cyRef = useRef(null);
+
+
+
 
   const deepCopy = (obj) =>
     typeof structuredClone === "function"
@@ -230,8 +236,12 @@ const Component = () => {
                 style={{ position: "sticky", top: "112px", maxHeight: "calc(100vh - 112px)", overflowY: "auto", paddingRight: "8px" }}
                 className="space-y-6"
               >
+
+
                 <GraphTools setElements={updateElements} />
+                <GraphTemplates onLoad={updateElements} />
                 <AlgorithmPanel cyRef={cyRef} setResults={setResults} />
+
               </div>
             </div>
 
