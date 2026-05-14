@@ -168,28 +168,68 @@ const GraphCanvas = ({ elements, setElements, cyRef }) => {
                         },
 
                         // = EDGES =
+                         {
+                            selector: "edge",
+                            style: {
+                                width: 2,
+                                // Show weight label on every edge if weight exists
+                                label: "data(weight)",
+                                "curve-style": "bezier",
+                                "line-color": "#6b7280",
+                                "target-arrow-color": "#6b7280",
+                                "target-arrow-shape": "none",
+                                // Label styling — readable on any background
+                                "font-size": "12px",
+                                "font-weight": "bold",
+                                "color": "#1f2937",
+                                "text-background-color": "#ffffff",
+                                "text-background-opacity": 0.85,
+                                "text-background-padding": "3px",
+                                "text-background-shape": "roundrectangle",
+                                "text-border-width": 1,
+                                "text-border-color": "#d1d5db",
+                                "text-border-opacity": 1,
+                                "text-rotation": "autorotate",
+                            },
+                        },
+
+                         // Directed edges
                         {
                             selector: "edge.directed",
                             style: {
-                                width: 2,
-                                label: "data(weight)",
-                                "curve-style": "straight",
                                 "target-arrow-shape": "triangle",
-                                "line-color": "#6b7280",
                                 "target-arrow-color": "#6b7280",
+                                "arrow-scale": 1.4,
                             },
                         },
 
                         {
                             selector: "edge.undirected",
                             style: {
-                                width: 2,
-                                label: "data(weight)",
-                                "curve-style": "straight",
-                                "target-arrow-shape": "none",
-                                "line-color": "#6b7280",
+                               "target-arrow-shape": "none", 
                             },
                         },
+
+
+                         {
+                            selector: "edge[weight = '+']",
+                            style: {
+                                "line-color": "#22c55e",
+                                "target-arrow-color": "#22c55e",
+                                "color": "#15803d",
+                            },
+                        },
+
+
+                         {
+                            selector: "edge[weight = '−']",
+                            style: {
+                                "line-color": "#ef4444",
+                                "target-arrow-color": "#ef4444",
+                                "color": "#b91c1c",
+                            },
+                        },
+
 
                         // Animations 
                         {
@@ -313,7 +353,7 @@ const GraphCanvas = ({ elements, setElements, cyRef }) => {
                             }
                         });
 
-                        // ✅ Right-click: change weight + directed/undirected
+                        //  Right-click: change weight + directed/undirected
                         cy.on("cxttap", "edge", (evt) => {
                             const edge = evt.target;
                             const currentWeight = edge.data("weight") || 1;
