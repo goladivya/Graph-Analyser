@@ -188,7 +188,7 @@ function PageRankPanel({ r }) {
       </div>
 
       {/* Ranked list */}
-      <Collapsible title="All Nodes — Ranked by PageRank" icon="📊" defaultOpen badge={entries.length}>
+      <Collapsible title="All Nodes — Ranked by PageRank"  defaultOpen badge={entries.length}>
         <RankedList entries={entries} maxVal={maxVal} color="#6366f1" />
       </Collapsible>
     </>
@@ -559,7 +559,7 @@ function BAPanel({ r }) {
 
       {/* Top hubs */}
       {r.topHubs?.length > 0 && (
-        <Collapsible title={`Top Hubs  (degree ≥ ${r.hubThreshold})`} icon="🏆" defaultOpen badge={r.hubCount}>
+        <Collapsible title={`Top Hubs  (degree ≥ ${r.hubThreshold})`} defaultOpen badge={r.hubCount}>
           <div style={{ display:"flex", flexDirection:"column", gap:"8px" }}>
             {r.topHubs.map(({ node, degree }, i) => (
               <div key={node}>
@@ -766,7 +766,7 @@ const ALGO_META = {
   "Label Propagation Community Detection": {  label: "Community Detection" },
   "Independent Cascade Model":   {   label: "Information Cascade"         },
   "Erdos-Renyi Random Graph":    {  label: "Erdős–Rényi Random Graph"    },
-  "Barabasi-Albert (True Preferential Attachment)": { icon: "🌐", label: "Barabási–Albert Graph" },
+  "Barabasi-Albert (True Preferential Attachment)": { label: "Barabási–Albert Graph" },
   "Watts-Strogatz Small World Model": {  label: "Watts–Strogatz Graph"   },
 };
 
@@ -780,7 +780,7 @@ const AnalysisResults = ({ results }) => {
   const r = (results.result && results.result.algorithm) ? results.result : results;
 
   const alg  = r.algorithm ?? "";
-  const meta = ALGO_META[alg] ?? { icon: "🔬", label: alg || "Results" };
+  const meta = ALGO_META[alg] ?? { label: alg || "Results" };
 
   const renderBody = () => {
     if (alg.startsWith("Structural Balance"))         return <BalancePanel    r={r} />;
